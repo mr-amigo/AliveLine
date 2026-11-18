@@ -111,7 +111,7 @@ export const aiApi = {
 
 export const billingApi = {
   get: () => api.get<Billing>('/billing'),
-  claim: (feature: ClaimFeature, opts: { assignment_id?: number; count?: number } = {}) =>
+  claim: (feature: ClaimFeature, opts: { assignment_id?: number } = {}) =>
     api.post<ClaimOut>('/billing/claim', { feature, ...opts }),
   portalClaim: () => api.post<{ token: string }>('/billing/portal-claim'),
 }

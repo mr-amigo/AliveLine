@@ -3,7 +3,7 @@ import type { ClaimFeature, Estimate, EstimateRequest, StepDraft, StepsRequest }
 import { billingStore } from './billing'
 
 /** Counts one use against the plan (402 = Pro needed, 429 = monthly cap) and returns the AI permission. */
-export async function claim(feature: ClaimFeature, opts: { assignment_id?: number; count?: number } = {}): Promise<string> {
+export async function claim(feature: ClaimFeature, opts: { assignment_id?: number } = {}): Promise<string> {
   const res = await billingApi.claim(feature, opts)
   billingStore.set(res.billing)
   return res.token

@@ -6,7 +6,7 @@ import { Button, Icon, useToast } from './ui'
 
 export const PRICES = { monthly: '$3', yearly: '$24' }
 
-const FEATURE_LABEL = { steps: 'AI steps', bulk: 'Estimate all with AI', reestimate: 'Re-estimate with AI' } as const
+const FEATURE_LABEL = { steps: 'AI steps', reestimate: 'Re-estimate with AI' } as const
 
 /** Settings → Plan: current plan, limits, upgrade (Paddle overlay) or manage subscription (Paddle portal). */
 export default function PlanSection() {
@@ -94,7 +94,7 @@ export default function PlanSection() {
               <div className="rounded bg-callout px-4 py-3.5">
                 <p className="font-semibold">AliveLine Pro</p>
                 <p className="mt-0.5 text-text-2">
-                  Unlimited AI steps, re-estimates and “Estimate all”, 10× the monthly AI estimates. Cancel any time.
+                  Unlimited AI steps and re-estimates, 10× the monthly AI estimates. Cancel any time.
                 </p>
                 {b.checkout ? (
                   <div className="mt-3 flex flex-wrap gap-2">

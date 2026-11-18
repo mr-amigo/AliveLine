@@ -14,6 +14,7 @@ export interface User {
   /** Offer an AI split into steps for big tasks. */
   suggest_steps: boolean
   show_at_risk: boolean
+  ai_estimates: boolean
   created_at: string
 }
 
@@ -38,6 +39,7 @@ export interface SettingsUpdate {
   interleave?: boolean
   suggest_steps?: boolean
   show_at_risk?: boolean
+  ai_estimates?: boolean
 }
 
 export type Status = 'can_wait' | 'time_to_start' | 'critical' | 'done'
@@ -144,9 +146,9 @@ export interface ImportResult {
 
 // ---- Billing (phase 13) ----
 
-export type ClaimFeature = 'estimate' | 'steps' | 'bulk'
+export type ClaimFeature = 'estimate' | 'steps'
 /** Pro features with free trial uses. */
-export type TrialFeature = 'reestimate' | 'steps' | 'bulk'
+export type TrialFeature = 'reestimate' | 'steps'
 
 export interface CheckoutConfig {
   environment: 'sandbox' | 'production'

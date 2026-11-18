@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { Link } from 'react-router-dom'
-import { ApiError } from '../api/client'
 import ListView from '../components/plan/ListView'
 import MonthGrid from '../components/plan/MonthGrid'
 import WeekGrid from '../components/plan/WeekGrid'
@@ -9,12 +8,9 @@ import { useAuth } from '../auth/AuthContext'
 import { useShell } from '../components/shell/AppShell'
 import PageHeader, { PAGE_X } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
-import { Alert, Button, Icon, IconButton, Loading, Skeleton } from '../components/ui'
+import { Alert, Button, Icon, IconButton, Loading, Skeleton, Spinner } from '../components/ui'
 import { useShortcuts } from '../hooks/useShortcuts'
 import type { Assignment } from '../api/types'
-import ProHint from '../components/ProHint'
-import { AI_CAP, estimateWithAi, needsAi } from '../lib/aiPass'
-import { trialsUsedUp, useBilling } from '../lib/billing'
 import { CAL_VIEWS, hoursLabel, kyivDate, rangeTitle, relative, shiftView, VIEW_LABEL, type CalView } from '../lib/dates'
 
 const SHORTCUT: Record<CalView, string> = { day: 'D', '3day': '3', week: 'W', month: 'M' }
@@ -44,7 +40,6 @@ export default function Planner() {
 
   const plan = s.plan
   const atRisk = user?.show_at_risk === false ? [] : plan?.assignments.filter((a) => !a.done && a.window.at_risk) ?? []
-  const rough = plan?.assignments.filter(needsAi) ?? []
 
   const tabs: { calendar: boolean; label: string; icon: 'calendar' | 'list'; key: string }[] = [
     { calendar: true, label: 'Calendar', icon: 'calendar', key: SHORTCUT[s.calView] },
@@ -99,6 +94,12 @@ export default function Planner() {
               ))}
             </div>
             <div className="ml-auto flex items-center gap-1">
+              {s.aiProgress && (
+                <span role="status" className="tnum flex items-center gap-1.5 px-2 text-meta text-text-2" title="AI is estimating hours for new assignments">
+                  <Spinner small />
+                  <span className="hidden sm:inline">AI estimating</span> {s.aiProgress.done}/{s.aiProgress.total}
+                </span>
+              )}
               {plan && atRisk.length > 0 && <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />}
               <Button size="sm" onClick={() => s.openAssignment('new')} title="New assignment (N)" aria-label="New assignment">
                 <Icon name="plus" />
@@ -132,11 +133,6 @@ export default function Planner() {
           <EmptyState onNew={() => s.openAssignment('new')} />
         ) : (
           <>
-            {rough.length > 0 && (
-              <div className={`${PAGE_X} pb-3 ${calendar ? '' : 'pt-4'}`}>
-                <RoughEstimates items={rough} onDone={s.reload} />
-              </div>
-            )}
             <div className={`${PAGE_X} flex flex-1 flex-col ${calendar ? '' : 'pt-2'}`}>
               {view === 'month' ? (
                 <MonthGrid
@@ -165,52 +161,6 @@ export default function Planner() {
         )}
       </div>
     </>
-  )
-}
-
-/** Items still on the rule-based estimate (e.g. imported before the AI pass ran): one button runs AI over all of them. */
-function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => Promise<void> }) {
-  const billing = useBilling()
-  const [progress, setProgress] = useState<number | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const total = Math.min(items.length, AI_CAP)
-  const n = items.length
-
-  async function run() {
-    setError(null)
-    setProgress(0)
-    try {
-      const estimated = await estimateWithAi(items, setProgress, true)
-      if (estimated < total) setError(`AI couldn’t estimate ${total - estimated} of them. Open one to set hours yourself.`)
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'AI estimates stopped')
-    }
-    await onDone()
-    setProgress(null)
-  }
-
-  return (
-    <Alert kind="info" icon={<Icon name="sparkle" />}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <p className="min-w-[12rem] flex-1">
-          <strong className="font-semibold">
-            {n} rough estimate{n === 1 ? '' : 's'}
-          </strong>{' '}
-          <span className="text-text-2">
-            {progress === null ? '— guessed from the title only. AI reads the whole task and gets closer.' : `— estimating ${progress} / ${total}…`}
-          </span>
-        </p>
-        <span className="flex items-center gap-2">
-          <ProHint feature="bulk" />
-          {!trialsUsedUp(billing, 'bulk') && (
-            <Button variant="secondary" size="sm" className="bg-transparent" loading={progress !== null} onClick={() => void run()}>
-              Estimate all with AI
-            </Button>
-          )}
-        </span>
-      </div>
-      {error && <p className="mt-1 text-text-2">{error}</p>}
-    </Alert>
   )
 }
 

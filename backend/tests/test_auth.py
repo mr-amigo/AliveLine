@@ -109,3 +109,6 @@ def test_add_missing_columns_adds_new_user_columns():
 def test_at_risk_warning_can_be_turned_off(signed_in):
     assert signed_in.get("/api/auth/me").json()["show_at_risk"] is True
     assert signed_in.patch("/api/settings", json={"show_at_risk": False}).json()["show_at_risk"] is False
+    me = signed_in.get("/api/auth/me").json()
+    assert me["ai_estimates"] is True
+    assert signed_in.patch("/api/settings", json={"ai_estimates": False}).json()["ai_estimates"] is False

@@ -7,6 +7,8 @@ import { useShell } from '../components/shell/AppShell'
 import PageHeader, { NARROW } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, Spinner } from '../components/ui'
+import { useAuth } from '../auth/AuthContext'
+import { markAttempted } from '../hooks/useAutoEstimate'
 import { AI_CAP, estimateWithAi } from '../lib/aiPass'
 
 const MAX_BYTES = 1_000_000
@@ -21,6 +23,7 @@ type Phase =
 export default function Import() {
   usePageMeta('Import')
   const { range, reload } = useShell()
+  const { user } = useAuth()
   const input = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [over, setOver] = useState(false)
@@ -40,7 +43,8 @@ export default function Import() {
     }
 
     // AI pass over new items (sequential, capped); the server already gave them a rule-based estimate.
-    const ids = result.created_ids.slice(0, AI_CAP)
+    const ids = user?.ai_estimates === false ? [] : result.created_ids.slice(0, AI_CAP)
+    markAttempted(ids) // the background pass must not estimate them twice
     let estimated = 0
     let aiError: string | null = null
     if (ids.length) {

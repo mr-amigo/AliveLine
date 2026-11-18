@@ -71,7 +71,7 @@ def checkout_config(user: User) -> dict[str, Any] | None:
     }
 
 
-def claim(db: Session, user: User, feature: Feature, assignment_id: int | None = None, count: int = 1) -> dict[str, Any]:
+def claim(db: Session, user: User, feature: Feature, assignment_id: int | None = None) -> dict[str, Any]:
     """Counts one use of an AI feature and returns a signed permission for the AI Lambda.
 
     Asking again for an assignment the AI already estimated is a re-estimate (Pro feature with trials).
@@ -82,14 +82,12 @@ def claim(db: Session, user: User, feature: Feature, assignment_id: int | None =
         a = db.get(Assignment, assignment_id)
         if a is not None and a.user_id == user.id and a.estimate_source == "ai":
             feature = Feature.REESTIMATE
-    calls = count if feature is Feature.BULK else 1
     usage = _usage(user)
-    billing.consume(usage, feature, calls, user_is_pro(user, now), now)
+    billing.consume(usage, feature, 1, user_is_pro(user, now), now)
     user.trial_uses, user.ai_month, user.ai_month_count = usage.trial_uses, usage.ai_month, usage.ai_month_count
     db.commit()
     scope = "steps" if feature is Feature.STEPS else "estimate"
-    # A bulk pass makes many sequential calls with one claim; single calls need only a moment.
-    token = create_claim(user.id, AI_AUDIENCE, 15 if feature is Feature.BULK else 2, scope=scope)
+    token = create_claim(user.id, AI_AUDIENCE, 2, scope=scope)
     return {"token": token, "feature": feature.value, "billing": summary(user, now)}
 
 

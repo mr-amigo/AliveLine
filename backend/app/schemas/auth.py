@@ -32,6 +32,7 @@ class UserOut(BaseModel):
     interleave: bool
     suggest_steps: bool
     show_at_risk: bool
+    ai_estimates: bool
     created_at: UtcDatetime
 
 
@@ -50,6 +51,7 @@ class SettingsUpdate(BaseModel):
     interleave: bool | None = None
     suggest_steps: bool | None = None
     show_at_risk: bool | None = None
+    ai_estimates: bool | None = None
 
     @field_validator("weekday_hours")
     @classmethod

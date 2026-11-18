@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from app.schemas.common import UtcDatetime
 
@@ -24,11 +24,9 @@ class BillingOut(BaseModel):
 
 
 class ClaimIn(BaseModel):
-    feature: Literal["estimate", "steps", "bulk"]
+    feature: Literal["estimate", "steps"]
     #: For "estimate": the assignment being estimated (asking again for an AI-estimated one = re-estimate).
     assignment_id: int | None = None
-    #: For "bulk": how many items the pass will estimate.
-    count: int = Field(default=1, ge=1, le=30)
 
 
 class ClaimOut(BaseModel):
