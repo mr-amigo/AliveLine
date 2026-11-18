@@ -11,6 +11,10 @@ Parameters:
   ApiDomain:
     Type: String
     Description: Host of the backend function URL (output ApiDomain of the backend stack), e.g. abc.lambda-url.us-east-1.on.aws.
+  AiDomain:
+    Type: String
+    Default: ""
+    Description: Host of the AI function URL (ai stack output AiDomain). Empty → /api/ai/* goes to the backend.
   PricingPlan:
     Type: String
     Default: FREE
@@ -26,6 +30,7 @@ Parameters:
 
 Conditions:
   UseFreePlan: !Equals [!Ref PricingPlan, FREE]
+  HasAi: !Not [!Equals [!Ref AiDomain, ""]]
 
 Mappings:
   CloudFront:
@@ -111,6 +116,15 @@ Resources:
               OriginProtocolPolicy: https-only
               OriginSSLProtocols: [TLSv1.2]
               OriginReadTimeout: 30
+          - !If
+            - HasAi
+            - Id: ai
+              DomainName: !Ref AiDomain
+              CustomOriginConfig:
+                OriginProtocolPolicy: https-only
+                OriginSSLProtocols: [TLSv1.2]
+                OriginReadTimeout: 30
+            - !Ref AWS::NoValue
         DefaultCacheBehavior:
           TargetOriginId: site
           ViewerProtocolPolicy: redirect-to-https
@@ -118,7 +132,19 @@ Resources:
           CachedMethods: [GET, HEAD]
           Compress: true
           CachePolicyId: !FindInMap [CloudFront, Managed, CachingOptimized]
+        # Order matters: the more specific /api/ai/* must come before /api/*.
         CacheBehaviors:
+          - !If
+            - HasAi
+            - PathPattern: /api/ai/*
+              TargetOriginId: ai
+              ViewerProtocolPolicy: https-only
+              AllowedMethods: [GET, HEAD, OPTIONS, PUT, PATCH, POST, DELETE]
+              CachedMethods: [GET, HEAD]
+              Compress: true
+              CachePolicyId: !FindInMap [CloudFront, Managed, CachingDisabled]
+              OriginRequestPolicyId: !FindInMap [CloudFront, Managed, AllViewerExceptHostHeader]
+            - !Ref AWS::NoValue
           - PathPattern: /api/*
             TargetOriginId: api
             ViewerProtocolPolicy: https-only

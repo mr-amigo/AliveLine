@@ -314,3 +314,6 @@ Outputs:
     Value: !GetAtt DbCluster.Endpoint.Address
   DbSecretArn:
     Value: !Ref DbSecret
+  AppSecretArn:
+    Description: JWT signing key secret, shared with the AI Lambda.
+    Value: !Ref AppSecret

@@ -19,10 +19,15 @@ TAG := $(shell git describe --always --dirty=-dirty-$$(date +%Y%m%d%H%M%S) 2>/de
 endif
 CLOUDFRONT_PLAN ?= FREE
 BUDGET_EMAIL    ?=
+# AI estimator provider (root .env): OPENAI_API_KEY [+ OPENAI_MODEL, OPENAI_BASE_URL], else BEDROCK_MODEL.
+OPENAI_MODEL    ?= gpt-4o-mini
+OPENAI_BASE_URL ?=
+BEDROCK_MODEL   ?=
 
 ECR_STACK      := $(PROJECT)-backend-ecr
 BACKEND_STACK  := $(PROJECT)-backend
 FRONTEND_STACK := $(PROJECT)-frontend
+AI_STACK       := $(PROJECT)-ai
 FUNCTION       := $(PROJECT)-backend
 TAGS           := PROJECT_NAME=$(PROJECT)
 LAMBDA_ARCH     = $(if $(filter arm64,$(ARCH)),arm64,x86_64)
@@ -42,14 +47,14 @@ build: ## Build the all-in-one Docker image (infra/Dockerfile)
 	docker build -f infra/Dockerfile -t $(PROJECT) .
 
 # ---------------------------------------------------------------- AWS
-.PHONY: aws-check aws-deploy aws-ecr aws-push aws-backend aws-migrate aws-frontend aws-publish \
-        aws-url aws-health aws-logs aws-destroy
+.PHONY: aws-check aws-deploy aws-ecr aws-push aws-backend aws-migrate aws-ai aws-frontend aws-publish \
+        aws-url aws-health aws-logs aws-ai-logs aws-destroy
 
 aws-check: ## Verify AWS credentials from .env
 	@aws sts get-caller-identity --query '[Account, Arn]' --output text \
 	  || { echo "AWS credentials missing/invalid: set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env"; exit 1; }
 
-aws-deploy: aws-check aws-ecr aws-push aws-backend aws-migrate aws-frontend aws-publish ## Deploy everything
+aws-deploy: aws-check aws-ecr aws-push aws-backend aws-migrate aws-ai aws-frontend aws-publish ## Deploy everything
 	@echo; echo "Site: $$($(call out,$(FRONTEND_STACK),SiteUrl))"
 
 aws-ecr: ## Create/update the ECR repository
@@ -76,11 +81,21 @@ aws-migrate: ## Create tables inside the Lambda (wakes Aurora if paused)
 	echo "Migrate: $$(cat $$resp)"; rm -f "$$resp"; \
 	[ "$$err" = None ] || { echo "Migration failed ($$err): make aws-logs"; exit 1; }
 
-aws-frontend: ## Create/update S3 + CloudFront (routes /api/* to the Lambda)
+aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$(TAG)
+	@uri=$$($(call out,$(ECR_STACK),RepositoryUri)); secret=$$($(call out,$(BACKEND_STACK),AppSecretArn)); \
+	test -n "$$uri" -a -n "$$secret" || { echo "Run make aws-ecr aws-backend first"; exit 1; }; \
+	aws cloudformation deploy --stack-name $(AI_STACK) --template-file infra/ai.yaml \
+	  --capabilities CAPABILITY_IAM --tags $(TAGS) --no-fail-on-empty-changeset \
+	  --parameter-overrides ProjectName=$(PROJECT) ImageUri=$$uri:$(TAG) Architecture=$(LAMBDA_ARCH) \
+	    AppSecretArn=$$secret "OpenAiApiKey=$(OPENAI_API_KEY)" OpenAiModel=$(OPENAI_MODEL) \
+	    "OpenAiBaseUrl=$(OPENAI_BASE_URL)" "BedrockModel=$(BEDROCK_MODEL)"
+
+aws-frontend: ## Create/update S3 + CloudFront (/api/ai/* → AI Lambda, /api/* → backend Lambda)
 	@api=$$($(call out,$(BACKEND_STACK),ApiDomain)); test -n "$$api" || { echo "Run make aws-backend first"; exit 1; }; \
+	ai=$$($(call out,$(AI_STACK),AiDomain)); [ "$$ai" = None ] && ai=; \
 	aws cloudformation deploy --stack-name $(FRONTEND_STACK) --template-file infra/frontend.yaml \
 	  --tags $(TAGS) --no-fail-on-empty-changeset \
-	  --parameter-overrides ProjectName=$(PROJECT) ApiDomain=$$api PricingPlan=$(CLOUDFRONT_PLAN)
+	  --parameter-overrides ProjectName=$(PROJECT) ApiDomain=$$api "AiDomain=$$ai" PricingPlan=$(CLOUDFRONT_PLAN)
 
 aws-publish: ## Build the SPA, upload it to S3, invalidate CloudFront
 	@bucket=$$($(call out,$(FRONTEND_STACK),BucketName)); dist=$$($(call out,$(FRONTEND_STACK),DistributionId)); \
@@ -100,8 +115,11 @@ aws-health: ## Call /api/health through CloudFront (first call after a pause wak
 aws-logs: ## Tail backend logs
 	aws logs tail /aws/lambda/$(FUNCTION) --since 30m --follow
 
+aws-ai-logs: ## Show AI estimator logs (one JSON line per estimate: provider, model, tokens, latency)
+	aws logs tail /aws/lambda/$(PROJECT)-ai --since 1h
+
 aws-destroy: aws-check ## Delete all stacks (Aurora keeps a final snapshot)
 	@read -p "Delete ALL $(PROJECT) stacks and data? Type '$(PROJECT)': " ans; [ "$$ans" = "$(PROJECT)" ] || exit 1; \
 	bucket=$$($(call out,$(FRONTEND_STACK),BucketName)); [ -z "$$bucket" ] || aws s3 rm "s3://$$bucket" --recursive; \
-	for s in $(FRONTEND_STACK) $(BACKEND_STACK) $(ECR_STACK); do \
+	for s in $(FRONTEND_STACK) $(AI_STACK) $(BACKEND_STACK) $(ECR_STACK); do \
 	  aws cloudformation delete-stack --stack-name $$s && aws cloudformation wait stack-delete-complete --stack-name $$s; done

@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from functools import lru_cache
 
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.security import decode_access_token
-from app.domain.estimation import Estimator, HeuristicEstimator
+from app.domain.estimation import ClaudeEstimator, Estimator, HeuristicEstimator, OpenAIEstimator
 from app.models import User
 
 
@@ -18,16 +19,38 @@ def get_db() -> Iterator[Session]:
         db.close()
 
 
-def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+def current_user_id(request: Request) -> int:
+    """Auth without a DB round-trip (AI Lambda): a valid, unexpired session cookie is enough."""
     token = request.cookies.get(get_settings().cookie_name)
     user_id = decode_access_token(token) if token else None
-    user = db.get(User, user_id) if user_id is not None else None
+    if user_id is None:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+    return user_id
+
+
+def current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    user = db.get(User, current_user_id(request))
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     return user
 
 
-def get_estimator() -> Estimator:
-    """Server-side estimator. The backend Lambda has no route to Bedrock, so it is the heuristic;
-    AI estimates arrive from the client (see docs/PLAN.md §5). Overridable in tests."""
+@lru_cache
+def _configured_estimator() -> Estimator:
+    s = get_settings()
+    if s.openai_api_key:
+        from openai import OpenAI
+
+        client = OpenAI(api_key=s.openai_api_key, base_url=s.openai_base_url, timeout=s.llm_timeout_seconds, max_retries=1)
+        return OpenAIEstimator(client, s.openai_model)
+    if s.bedrock_model:
+        from anthropic import AnthropicBedrock
+
+        client = AnthropicBedrock(aws_region=s.bedrock_region, timeout=s.llm_timeout_seconds, max_retries=1)
+        return ClaudeEstimator(client, s.bedrock_model)
     return HeuristicEstimator()
+
+
+def get_estimator() -> Estimator:
+    """Estimator strategy chosen by config (docs/PLAN.md §5). Overridable in tests."""
+    return _configured_estimator()

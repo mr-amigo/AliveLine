@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  AliveLine - AI estimator Lambda outside the VPC (so it can reach the LLM provider), same image as the backend
+  with the app.ai_handler entry point. Public function URL; CloudFront routes /api/ai/* here. No database access.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: aliveline
+  ImageUri:
+    Type: String
+  Architecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, x86_64]
+  AppSecretArn:
+    Type: String
+    Description: Backend stack's AppSecret (JWT key), so session cookies verify here too.
+  OpenAiApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: OpenAI (or compatible) API key. Empty → Bedrock if BedrockModel is set, else heuristic.
+  OpenAiModel:
+    Type: String
+    Default: gpt-4o-mini
+  OpenAiBaseUrl:
+    Type: String
+    Default: ""
+  BedrockModel:
+    Type: String
+    Default: ""
+    Description: e.g. us.anthropic.claude-haiku-4-5-20251001-v1:0 (used only when OpenAiApiKey is empty).
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+
+Conditions:
+  HasOpenAiKey: !Not [!Equals [!Ref OpenAiApiKey, ""]]
+  HasOpenAiBaseUrl: !Not [!Equals [!Ref OpenAiBaseUrl, ""]]
+  HasBedrockModel: !Not [!Equals [!Ref BedrockModel, ""]]
+
+Resources:
+  AiLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ProjectName}-ai
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  AiRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BedrockInvoke
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock-mantle:CreateInference]
+                Resource: "*"
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  AiFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub ${ProjectName}-ai
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      ImageConfig:
+        Command: [app.ai_handler.handler]
+      Architectures: [!Ref Architecture]
+      MemorySize: 512
+      Timeout: 30
+      Role: !GetAtt AiRole.Arn
+      LoggingConfig:
+        LogGroup: !Ref AiLogGroup
+      Environment:
+        Variables:
+          ENV: prod
+          SECRET_KEY: !Sub "{{resolve:secretsmanager:${AppSecretArn}:SecretString:secret_key}}"
+          OPENAI_API_KEY: !If [HasOpenAiKey, !Ref OpenAiApiKey, !Ref AWS::NoValue]
+          OPENAI_MODEL: !Ref OpenAiModel
+          OPENAI_BASE_URL: !If [HasOpenAiBaseUrl, !Ref OpenAiBaseUrl, !Ref AWS::NoValue]
+          BEDROCK_MODEL: !If [HasBedrockModel, !Ref BedrockModel, !Ref AWS::NoValue]
+          BEDROCK_REGION: !Ref AWS::Region
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  AiFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref AiFunction
+      AuthType: NONE
+
+  AiFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AiFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  AiFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AiFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  AiDomain:
+    Description: Host of the AI function URL, used as the CloudFront /api/ai/* origin.
+    Value: !Select [2, !Split ["/", !GetAtt AiFunctionUrl.FunctionUrl]]
+  FunctionName:
+    Value: !Ref AiFunction
