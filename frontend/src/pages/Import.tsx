@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { aiApi, ApiError, assignmentsApi, importApi, planApi } from '../api/client'
 import type { ImportResult } from '../api/types'
 import { useShell } from '../components/shell/AppShell'
+import PageHeader, { NARROW } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, Spinner } from '../components/ui'
 
@@ -73,23 +74,26 @@ export default function Import() {
 
   return (
     <>
-      <TopBar title="Import Moodle calendar" />
+      <TopBar icon="📥" crumbs={['Import']} />
       <div className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[480px] space-y-6 px-4 py-6">
-          <p className="text-body text-text-2">
-            Bring every Moodle deadline in at once. Importing again later updates dates and keeps your own hours and done marks.
-          </p>
+        <PageHeader
+          narrow
+          icon="📥"
+          title="Import Moodle calendar"
+          description="Bring every Moodle deadline in at once. Importing again later updates dates and keeps your own hours and done marks."
+        />
+        <div className={`${NARROW} space-y-6 pb-24 pt-6`}>
 
-          <ol className="space-y-2 text-label">
+          <ol className="space-y-1 text-section leading-[1.5]">
             {[
               <>In Moodle, open <b className="font-medium">Calendar</b>.</>,
               <>Click <b className="font-medium">Import or export calendars</b>, then <b className="font-medium">Export calendar</b>.</>,
               <>Choose <b className="font-medium">All events</b> and <b className="font-medium">Recent and next 60 days</b>, then <b className="font-medium">Export</b>.</>,
               <>Drop the downloaded <b className="font-medium">.ics</b> file below.</>,
             ].map((step, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="tnum grid h-5 w-5 shrink-0 place-items-center rounded-full bg-bg-hover text-tiny font-semibold text-text-2">{i + 1}</span>
-                <span className="pt-px">{step}</span>
+              <li key={i} className="flex gap-1">
+                <span className="tnum w-6 shrink-0 text-center">{i + 1}.</span>
+                <span>{step}</span>
               </li>
             ))}
           </ol>
@@ -103,8 +107,8 @@ export default function Import() {
             onDragOver={(e) => { e.preventDefault(); setOver(true) }}
             onDragLeave={() => setOver(false)}
             onDrop={onDrop}
-            className={`flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1 rounded-md border border-dashed text-label transition-colors duration-[120ms] ${
-              over ? 'border-accent bg-accent-tint' : 'border-line-strong hover:bg-bg-subtle'
+            className={`flex h-[120px] cursor-pointer flex-col items-center justify-center gap-1 rounded border border-dashed text-body transition-colors duration-[120ms] ${
+              over ? 'border-accent bg-accent-tint' : 'border-line-strong hover:bg-bg-hover/50'
             } ${busy ? 'cursor-wait opacity-60' : ''}`}
           >
             {phase.kind === 'uploading' ? (
@@ -136,7 +140,7 @@ export default function Import() {
                 {([['Added', result.created], ['Updated', result.updated], ['Skipped', result.skipped]] as const).map(([label, n], i) => (
                   <div key={label} className={`px-3 py-2 ${i ? 'border-l border-line' : ''}`}>
                     <dt className="text-meta text-text-2">{label}</dt>
-                    <dd className="tnum text-title font-semibold">{n}</dd>
+                    <dd className="tnum text-h2 font-semibold">{n}</dd>
                   </div>
                 ))}
               </dl>

@@ -2,15 +2,16 @@ import { useState, type FormEvent, type ReactNode } from 'react'
 import { ApiError, settingsApi } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useShell } from '../components/shell/AppShell'
+import PageHeader, { NARROW } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Button, Input, Stepper, useToast } from '../components/ui'
 import { hoursLabel } from '../lib/dates'
 
 function Row({ label, hint, htmlFor, children }: { label: string; hint: string; htmlFor?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-line py-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+    <div className="flex flex-col gap-2 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
       <div className="min-w-0">
-        <label htmlFor={htmlFor} className="text-label font-medium">{label}</label>
+        <label htmlFor={htmlFor} className="text-body text-text">{label}</label>
         <p className="text-meta text-text-2">{hint}</p>
       </div>
       <div className="shrink-0">{children}</div>
@@ -46,10 +47,11 @@ export default function Settings() {
 
   return (
     <>
-      <TopBar title="Settings" />
+      <TopBar icon="⚙️" crumbs={['Settings']} />
       <div className="flex-1 overflow-y-auto">
-        <form onSubmit={submit} className="mx-auto max-w-[480px] px-4 py-6">
-          <p className="pb-2 text-body text-text-2">These numbers decide when AliveLine tells you to start.</p>
+        <PageHeader narrow icon="⚙️" title="Settings" description="These numbers decide when AliveLine tells you to start." />
+        <form onSubmit={submit} className={`${NARROW} pb-24 pt-6`}>
+          <h2 className="border-b border-line pb-3 text-section font-medium">My plan</h2>
 
           <Row label="Name" hint={user?.email ?? ''} htmlFor="name">
             <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} className="sm:w-48" />
@@ -83,7 +85,7 @@ export default function Settings() {
             />
           </Row>
 
-          <div className="pt-4">
+          <div className="border-t border-line pt-5">
             <Button type="submit" loading={busy} disabled={!dirty}>Save changes</Button>
           </div>
         </form>

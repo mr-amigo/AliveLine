@@ -92,7 +92,7 @@ export default function AppShell() {
 
   return (
     <div className="flex h-dvh overflow-hidden">
-      <aside className="hidden w-60 shrink-0 border-r border-line lg:block">
+      <aside className="hidden w-60 shrink-0 shadow-[inset_-1px_0_0_rgba(15,15,15,0.04)] lg:block">
         <Sidebar {...sidebarProps} />
       </aside>
 

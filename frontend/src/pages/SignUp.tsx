@@ -25,7 +25,7 @@ export default function SignUp() {
       subtitle="Stop starting the night before."
       submitLabel="Create account"
       onSubmit={submit}
-      footer={<>Already have an account? <Link to="/signin" className="font-semibold text-accent hover:underline">Sign in</Link></>}
+      footer={<>Already have an account? <Link to="/signin" className="text-accent underline underline-offset-2 hover:text-accent-hover">Sign in</Link></>}
     >
       <Field label="Name">
         <Input autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ostap" autoFocus />

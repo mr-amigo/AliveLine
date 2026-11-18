@@ -4,7 +4,7 @@ import { Icon, IconButton } from '../ui'
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-/** Month picker: click a date → jump to its week; dots mark deadlines; today = accent circle. */
+/** Month picker: click a date → jump to its week; dots mark deadlines; today = red circle (Notion Calendar). */
 export default function MiniMonth({
   today,
   week,
@@ -29,9 +29,9 @@ export default function MiniMonth({
   const rows = Array.from({ length: 6 }, (_, r) => cells.slice(r * 7, r * 7 + 7))
 
   return (
-    <div className="px-1">
+    <div className="px-1 text-text">
       <div className="mb-1 flex items-center justify-between pl-1">
-        <span className="text-label font-semibold">
+        <span className="text-body font-medium text-text">
           {monthName(month)} {year(month)}
         </span>
         <span className="flex">
@@ -58,11 +58,11 @@ export default function MiniMonth({
                       onClick={() => onPick(d)}
                       aria-label={`${mediumDay(d)}${deadlines.has(d) ? ', has deadlines' : ''}`}
                       aria-current={isToday ? 'date' : undefined}
-                      className="relative mx-auto grid h-7 w-7 place-items-center rounded-full hover:bg-line"
+                      className="relative mx-auto grid h-7 w-7 place-items-center rounded-full hover:bg-bg-hover"
                     >
                       <span
                         className={`tnum grid h-5 w-5 place-items-center rounded-full ${
-                          isToday ? 'bg-accent font-semibold text-white' : inMonth ? 'text-text' : 'text-text-3'
+                          isToday ? 'bg-today font-semibold text-white' : inMonth ? 'text-text' : 'text-text-3'
                         }`}
                       >
                         {dayNum(d)}

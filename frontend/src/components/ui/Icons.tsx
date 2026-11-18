@@ -1,4 +1,4 @@
-// 16px inline icons, 1.5px stroke (DESIGN.md §9: no emoji as UI icons).
+// 16px inline icons, 1.5px stroke (DESIGN.md §9: emoji only as page icons, never as controls).
 const paths = {
   'chevron-left': 'M10 3.5 5.5 8l4.5 4.5',
   'chevron-right': 'M6 3.5 10.5 8 6 12.5',
@@ -18,6 +18,13 @@ const paths = {
   list: 'M5.5 4h8m-8 4h8m-8 4h8M2.5 4h.01M2.5 8h.01M2.5 12h.01',
   sparkle: 'M8 2v3m0 6v3M2 8h3m6 0h3M4.2 4.2l1.6 1.6m4.4 4.4 1.6 1.6m0-7.6-1.6 1.6M5.8 10.2l-1.6 1.6',
   file: 'M9 2H4v12h8V5L9 2Zm0 0v3h3',
+  more: 'M3.5 8h.01M8 8h.01M12.5 8h.01',
+  'chevrons-right': 'M3.5 3.5 8 8l-4.5 4.5m5-9L13 8l-4.5 4.5',
+  clock: 'M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12Zm0-9v3l2 1.5',
+  status: 'M8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12Zm0-3.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z',
+  tag: 'M2.5 2.5h5l6 6-5 5-6-6v-5Zm3 3h.01',
+  link: 'M6.5 9.5l3-3M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1',
+  text: 'M2.5 4h11M2.5 8h11M2.5 12h7',
 } as const
 
 export type IconName = keyof typeof paths

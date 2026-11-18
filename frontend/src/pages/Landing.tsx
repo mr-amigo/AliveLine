@@ -87,33 +87,33 @@ export default function Landing() {
 
       <main className="mx-auto max-w-6xl px-6">
         <section className="max-w-2xl pb-12 pt-12 md:pt-20">
-          <h1 className="text-[40px] font-semibold leading-[1.1] tracking-tight md:text-[56px]">
+          <h1 className="text-[40px] font-bold leading-[1.1] tracking-[-0.02em] md:text-[64px]">
             Know when to start, not just when it's due.
           </h1>
-          <p className="mt-5 max-w-xl text-section text-text-2">
+          <p className="mt-5 max-w-xl text-title font-medium text-text-2">
             Moodle shows the deadline. AliveLine estimates the hours each assignment takes and spreads them over your
             week, so you always know what to open today.
           </p>
           <div className="mt-8 flex flex-wrap gap-2">
-            <Link to="/signup"><Button className="h-10 px-5 text-body">Create free account</Button></Link>
-            <Link to="/signin"><Button variant="secondary" className="h-10 px-5 text-body">Sign in</Button></Link>
+            <Link to="/signup"><Button className="h-10 rounded-md px-5 text-section">Create free account</Button></Link>
+            <Link to="/signin"><Button variant="secondary" className="h-10 rounded-md px-5 text-section">Sign in</Button></Link>
           </div>
         </section>
 
-        <section aria-label="Example plan for the next 7 days" className="overflow-hidden rounded-md border border-line">
-          <div className="flex h-10 items-center border-b border-line px-3 text-label font-medium text-text-2">
+        <section aria-label="Example plan for the next 7 days" className="overflow-hidden rounded-xl bg-bg shadow-card">
+          <div className="flex h-11 items-center px-4 text-body font-medium text-text-2">
             Your next 7 days at 3 h of study a day
           </div>
           <WeekGrid days={demo.days} assignments={demo.assignments} capacity={3} today={today} />
         </section>
 
         <section className="py-16">
-          <h2 className="text-title font-semibold">How it works</h2>
+          <h2 className="text-h1 font-bold">How it works</h2>
           <ol className="mt-6 grid gap-8 md:grid-cols-3">
             {steps.map((s, i) => (
               <li key={s.title} className="border-t border-line pt-4">
                 <span className="tnum text-meta font-medium text-text-3">Step {i + 1}</span>
-                <h3 className="mt-1 text-section font-semibold">{s.title}</h3>
+                <h3 className="mt-1 text-title font-semibold">{s.title}</h3>
                 <p className="mt-1 text-body text-text-2">{s.text}</p>
               </li>
             ))}
@@ -122,7 +122,7 @@ export default function Landing() {
 
         <section className="grid gap-6 border-t border-line py-16 md:grid-cols-2 md:items-center">
           <div>
-            <h2 className="text-title font-semibold">Early access for UCU students</h2>
+            <h2 className="text-h1 font-bold">Early access for UCU students</h2>
             <p className="mt-1 text-body text-text-2">We're testing with first- and second-year students. Leave your email and we'll send an invite.</p>
           </div>
           <WaitlistForm />

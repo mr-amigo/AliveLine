@@ -1,130 +1,160 @@
 # AliveLine — design system
 
-Reference: the **Notion Calendar** interaction model and visual restraint, applied to our own brand.
-We borrow *principles and layout patterns*, never its name, logo, icons or exact screens.
-Source of truth for phase 7 (and any UI change after it). Tokens live in `frontend/src/index.css` (`@theme`).
+Reference: **Notion** (the workspace app) and **Notion Calendar**, copied as closely as possible in look and feel —
+palette, type, spacing, sidebar, page header, database views, side peek, tags, callouts, buttons.
+Only our own name and logo are used; no Notion name, logo, illustrations or copied icon artwork.
+Source of truth for any UI change. Tokens live in `frontend/src/index.css` (`@theme`).
 
 ---
 
-## 1. What makes Notion Calendar feel the way it does (analysis)
-| Trait | What it looks like | What we take |
+## 1. What we copy from Notion
+| Notion trait | What it looks like | Where in AliveLine |
 |---|---|---|
-| **Chrome disappears** | White canvas, no cards or shadows on the main surface; structure comes from 1px hairlines in warm grey | Hairline grid, no boxed cards in the app shell |
-| **Content is the only colour** | UI is grayscale; colour appears only on events and the "now" marker | Colour only on work blocks, deadline chips, status dots and the today marker |
-| **Pastel events, dark text** | Event = rounded rect with a light tint fill, a darker same-hue text, a stronger tint when selected | `WorkBlock` uses status tint + status text colour |
-| **Dense, small type** | 12–14px Inter, medium weight for titles, grey secondary text; tabular numbers | Same scale (§3) |
-| **Three-zone layout** | Left sidebar (mini month + calendar list), top bar (Today, ‹ ›, month title, view switch), main time grid; detail opens in a right-side panel, not a new page | Same shell (§5) |
-| **Keyboard first** | `T` today, `←/→` or `J/K` move period, `W/D/M` views, `⌘K` command menu, `Esc` closes panel | `T`, `←/→`, `W`/`L`, `N` new, `Esc` (§7) |
-| **Today is unmistakable** | Today's date number in a filled red circle, red current-time line | Today = filled accent circle on the date number + tinted column header |
-| **Calm motion** | 120–180 ms fades/slides, no bounce | Same (§6) |
+| **Warm-grey sidebar** | 240px, `#F7F7F5`, workspace row on top, 30px rows, 14/500 `#5F5E5B`, grey 12px section labels | `Sidebar` (workspace row, Planner/Import/Settings, mini month, Today, Courses, Log out) |
+| **Borderless top bar** | 44px, breadcrumbs `emoji Page / Sub`, actions right, no hairline | `TopBar` |
+| **Page header** | Big emoji icon, 40px bold title, grey description, 96px side gutters (full width) or 708px column | `PageHeader` on Planner, Import, Settings |
+| **Database view bar** | View tabs (icon + name, 2px dark underline on active), blue **New** button right, hairline under | Planner `Week` / `List` tabs |
+| **Calendar view** | Hairline cells, weekends `#FBFBFA`, today's date in a red circle, items as white cards with soft shadow | `WeekGrid` header + `DeadlineChip` cards |
+| **Calendar events** | Pastel tint fill, coloured left bar, dark same-hue text | `WorkBlock` (status tint + course bar) |
+| **Table view** | 34px rows, vertical + horizontal hairlines, column headers with grey property icons, grouped by select with tag + count | `ListView` |
+| **Select tags** | 20px pill, radius 4, pastel bg + dark text | `Tag` (status, course) |
+| **Side peek** | Panel slides from right, `»` close, huge editable title, property rows (icon · label · value), body text below a hairline | `AssignmentDrawer` |
+| **Callout block** | Tinted bg (`#F1F1EF` grey, red, orange, green), icon left, radius 4 | `Alert`, `EstimatePanel` |
+| **Buttons & inputs** | Blue `#2383E2` filled, white with inset hairline, ghost grey; inputs with faint fill + inset outline, blue double-ring focus | `Button`, `IconButton`, `Input`, `Textarea`, `Stepper` |
+| **Dark snackbar** | `#2F2F2F` toast with white 14px text, bottom centre | `Toast` |
+| **Login page** | 320px column, bold 24px title + grey bold subtitle, full-width blue button | `AuthForm` |
 
-Adaptation to our domain: we schedule **hours per day**, not clock times. So the week grid has **no hour rows**.
-Each day column stacks work blocks whose **height is proportional to hours**, up to the user's daily capacity
-(a faint capacity line shows where the day is "full"). Deadlines sit in an **all-day row** at the top, like all-day events.
+Domain adaptation: we plan **hours per day**, not clock times, so the week grid has **no hour rows**. Each day stacks
+work blocks whose **height ∝ hours** up to the daily capacity (dashed capacity line). Deadlines sit in the all-day row.
 
-## 2. Colour tokens (light theme; dark theme is out of scope v1)
-Warm Notion-like greys plus muted, desaturated hues.
-
+## 2. Colour tokens (light theme only)
 | Token | Value | Use |
 |---|---|---|
-| `--color-bg` | `#FFFFFF` | app canvas |
-| `--color-bg-subtle` | `#F7F7F5` | sidebar, hover rows, inputs |
-| `--color-bg-hover` | `#EFEFED` | hover on buttons/rows |
-| `--color-line` | `#E9E9E7` | hairlines, grid lines, borders |
-| `--color-line-strong` | `#D9D9D6` | input borders, focused separators |
-| `--color-text` | `#37352F` | primary text |
-| `--color-text-2` | `#787774` | secondary text, labels |
-| `--color-text-3` | `#A5A29C` | placeholders, disabled, weekend dates |
-| `--color-accent` | `#16A34A` | brand "alive" green: primary button, today circle, focus ring, logo pulse |
-| `--color-accent-tint` | `#E8F5EC` | today column header, selected nav item |
+| `bg` | `#FFFFFF` | page canvas, peek, cards |
+| `bg-subtle` | `#F7F7F5` | sidebar |
+| `bg-weekend` | `#FBFBFA` | weekend columns |
+| `bg-hover` | `rgba(55,53,47,.08)` | hover on rows, buttons, inputs (works on white and sidebar) |
+| `bg-press` | `rgba(55,53,47,.16)` | active/pressed |
+| `line` | `#E9E9E7` | hairlines, table/grid lines |
+| `line-strong` | `#DDDCDA` | dashed capacity line, dropzone |
+| `text` | `#37352F` | primary text |
+| `text-sidebar` | `#5F5E5B` | sidebar rows |
+| `text-2` | `#787774` | secondary text, property labels |
+| `text-3` | `#9B9A97` | placeholders, icons, section labels |
+| `accent` / `accent-hover` | `#2383E2` / `#0077D4` | primary button, links, focus |
+| `accent-tint` | `#E7F3F8` | dropzone drag-over |
+| `select` | `rgba(35,131,226,.14)` | selected table row |
+| `today` | `#EB5757` | today circle (grid + mini month), error dot in toast |
+| `ink` | `#2F2F2F` | toast background |
+| `callout` / `-red` / `-orange` / `-green` | `#F1F1EF` / `#FDEBEC` / `#FBECDD` / `#EDF3EC` | callouts |
 
-Status palette (each: **tint** fill / **text** / **solid** for dots and selected state):
-| Status | Tint | Text | Solid |
-|---|---|---|---|
-| `critical` | `#FBE4E4` | `#9F2F2D` | `#E03E3E` |
-| `time_to_start` | `#FAEBDD` | `#8A4B0F` | `#D9730D` |
-| `can_wait` | `#EAEAE8` | `#5A5955` | `#9B9A97` |
-| `done` | `#DDEDEA` | `#2B6A5E` (+ line-through) | `#0F7B6C` |
+Status = Notion select colours (**tint** tag bg / **text** tag fg / **solid** dots, rings, callout icons):
+| Status | Notion colour | Tint | Text | Solid |
+|---|---|---|---|---|
+| `critical` | red | `#FFE2DD` | `#5D1715` | `#D44C47` |
+| `time_to_start` | orange | `#FADEC9` | `#49290E` | `#D9730D` |
+| `can_wait` | gray | `#E3E2E0` | `#32302C` | `#9B9A97` |
+| `done` | green | `#DBEDDB` | `#1C3829` | `#448361` |
 
-Course colours (left 3px stripe on blocks + sidebar dot), assigned by `course_id % 6`:
-blue `#2F80ED`, purple `#9065B0`, pink `#C14C8A`, teal `#0F7B6C`, yellow `#CB912F`, brown `#9F6B53`.
+Course colours (hash of course name → index; solid for bars/checkboxes, tag bg + text for table tags):
+blue `#337EA9`/`#D3E5EF`/`#183347`, purple `#9065B0`/`#E8DEEE`/`#412454`, pink `#C14C8A`/`#F5E0E9`/`#4C2337`,
+green `#448361`/`#DBEDDB`/`#1C3829`, yellow `#CB912F`/`#FDECC8`/`#402C1B`, brown `#9F6B53`/`#EEE0DA`/`#442A1E`.
 
-Rule: never more than **status tint + course stripe** on one element. Text on tints must stay ≥ 4.5:1 contrast.
+Rule: one element carries at most **status tint + course bar**. Tag text on tag bg stays ≥ 4.5:1.
 
 ## 3. Typography
-Font: **Inter** (Google Fonts, `font-feature-settings: "cv11", "ss01"`), fallback `system-ui, -apple-system, Segoe UI, sans-serif`. Numbers: `tabular-nums`.
+Font: Notion's system stack — `ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI",
+Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum`.
 
-| Role | Size / line | Weight |
-|---|---|---|
-| Page title (month "November 2026", landing h1 scales up) | 20 / 28 | 600 |
-| Section / drawer title | 16 / 24 | 600 |
-| Body, inputs | 14 / 20 | 400 |
-| UI label, sidebar item, block title | 13 / 18 | 500 |
-| Meta (hours, dates, column weekday) | 12 / 16 | 400–500, `--color-text-2` |
-| Tiny (badge, kbd) | 11 / 14 | 500, uppercase off |
+| Token | Size / line | Weight | Use |
+|---|---|---|---|
+| `page` | 40 / 48 | 700, −0.01em | page title (30px on mobile), landing h1 scales to 64 |
+| `h1` | 30 / 39 | 700 | peek title, landing sections, mobile page title |
+| `h2` | 24 / 31 | 700 / 600 | auth title + subtitle, import counters |
+| `title` | 20 / 26 | 500–600 | landing sub-headings |
+| `section` | 16 / 24 | 400–500 | page description, body text in peek, lists |
+| `body` | 14 / 20 | 400–500 | **default UI size**: sidebar, buttons, table, properties |
+| `label` | 13 / 18 | 500 | rare compact UI |
+| `meta` | 12 / 16 | 400–500 | section labels, block titles, hints |
+| `tiny` | 11 / 14 | 500 | avatar letter, kbd |
 
 ## 4. Space, shape, elevation
-- Spacing scale 4px: 4, 8, 12, 16, 24, 32, 48. App shell paddings 12–16px; landing 24–48px.
-- Radius: 4px (blocks, chips, inputs, buttons), 6px (popovers, drawer inner cards), full (avatars, today circle, dots).
-- Borders 1px `--color-line`. **No shadows** on the canvas. Only floating layers get a shadow:
-  `--shadow-pop: 0 0 0 1px rgba(15,15,15,.05), 0 3px 6px rgba(15,15,15,.1), 0 9px 24px rgba(15,15,15,.2)` (menus, drawer, toasts).
-- Focus: 2px `--color-accent` ring with 1px white offset; never remove outlines without a replacement.
+- 4px grid. Sidebar `px-2`, rows 30px. Page gutters `px-6 md:px-12 xl:px-24` (`PAGE_X`); narrow pages 708px (`NARROW`).
+  Page header top 32/48px, emoji 48/78px.
+- Radius: 4px (buttons, tags, inputs, blocks, callouts), 6px (sidebar rows, toast), 12px (landing preview, mobile sheet).
+- No shadows on the canvas except Notion cards. Shadows:
+  `card` `0 0 0 1px rgba(15,15,15,.1), 0 2px 4px rgba(15,15,15,.1)` (deadline cards, landing preview) ·
+  `peek` very soft (side peek) · `pop` `0 0 0 1px rgba(15,15,15,.05), 0 3px 6px rgba(15,15,15,.1), 0 9px 24px rgba(15,15,15,.2)` (menu, sheet, toast) ·
+  `outline` inset 1px (inputs) · `btn` inset 1px `rgba(55,53,47,.16)` (secondary buttons, stepper) ·
+  `focus` `inset 0 0 0 1px rgba(35,131,226,.57), 0 0 0 2px rgba(35,131,226,.35)` (inputs). Other focus: 2px blue outline.
+- Sidebar edge: `inset -1px 0 0 rgba(15,15,15,.04)` instead of a border.
 
 ## 5. Layout & components
 
-### App shell (`/app/*`, desktop ≥ 1024px)
+### App shell (`/app/*`, ≥ 1024px)
 ```
-┌──────────── 240px ────────────┬─────────────────────────────────────────────────────────────┐
-│ ● AliveLine         [avatar▾] │ [Today] ‹ ›  November 2026          [Week|List]  [+ New]   │ ← TopBar 48px
-│ ┌ mini month ───────────────┐ ├─────────────────────────────────────────────────────────────┤
-│ │ M T W T F S S             │ │      Mon 16   Tue 17  (Wed 18)  Thu 19  Fri 20  Sat  Sun    │ ← day headers
-│ │ …            (18) …       │ │ due  [▲ Lab 3]                 [▲ Essay]                    │ ← deadline row
-│ └───────────────────────────┘ ├─────────────────────────────────────────────────────────────┤
-│ TODAY · 3h                    │ ┌──────┐ ┌──────┐ ┌──────┐                                 │
-│  ▪ 2h Lab 3          critical │ │Lab 3 │ │Lab 3 │ │Essay │                                 │ ← WorkBlocks
-│  ▪ 1h Essay       time to st. │ │ 2h   │ │ 1h   │ │ 2h   │                                 │   height ∝ hours
-│ COURSES                       │ ├──────┤ └──────┘ └──────┘   - - - capacity 3h - - - - -    │
-│  ● OOAD   ● Calculus  …       │ │Essay │                                                     │
-│ ───────────                   │ │ 1h   │                                                     │
-│ ⤓ Import .ics   ⚙ Settings    │ └──────┘                                                     │
-└───────────────────────────────┴─────────────────────────────────────────────────────────────┘
-                                                      Drawer (400px, slides from right) on click
+┌──────── 240px #F7F7F5 ────────┬──────────────────────────────────────────────────────────────┐
+│ [A] Artem’s AliveLine          │ 🗓️ Planner / 16 – 22 Nov 2026                                │ ← TopBar 44px, no border
+│ ▤ Planner                      │                                                              │
+│ ⤒ Import                       │      🗓️                                                      │ ← PageHeader
+│ ⚙ Settings                     │      Planner                                    (40px bold) │
+│ November 2026          ‹ ›     │      When to start each assignment…            (16px grey) │
+│ M T W T F S S                  │                                                              │
+│ …  (18)  …     ← red circle    │      ▦ Week   ☰ List                          [+ New]      │ ← view tabs, underline
+│ Today                    3h    │      ─────────────────────────────────────────────────────── │
+│ ● Lab 3                  2h    │      16 – 22 Nov 2026                     ‹  Today  ›        │
+│ ● Essay                  1h    │      ┌Mon 16┬Tue 17┬(18)──┬Thu 19┬Fri 20┬Sat 21┬Sun 22┐      │
+│ Courses                        │      │[●Lab3]│      │      │[●Ess]│      │░░░░░░│░░░░░░│      │ ← deadline cards
+│ ☑ OOAD                         │      │▌Lab 3│▌Lab 3│▌Essay│      │      │░░░░░░│░░░░░░│      │ ← work blocks
+│ ☑ Calculus                     │      │- - - - - - - - - 3h / day - - - - - - - - - - - │      │
+│ ⇥ Log out                      │      └──────┴──────┴──────┴──────┴──────┴──────┴──────┘      │
+└────────────────────────────────┴──────────────────────────────────────────────────────────────┘
+                                                   Side peek (520px) slides in from the right on click
 ```
-- **Sidebar** (`--color-bg-subtle`, right hairline): logo; `MiniMonth` (click a date → jump week; dots under days with deadlines; today = accent circle); **Today** list (the core answer: what to work on now, with hours + status dot); **Courses** list with colour dots (click toggles visibility); footer links Import, Settings, Sign out.
-- **TopBar**: `Today` button (outlined), ‹ › icon buttons, period title (20/600), view switch segmented control `Week | List`, primary `+ New` (accent).
-- **WeekGrid**: 7 equal columns, hairline separators, weekend columns `--color-text-3` header; today column header gets `--color-accent-tint` and the date number in an accent circle. Past days slightly dimmed (`opacity .6` on blocks).
-  - **Deadline row** (all-day): `DeadlineChip` = 20px chip, status tint, `▲`/flag glyph + title, truncated; overflow → "+2".
-  - **Day body**: stacked `WorkBlock`s, height `= hours × 28px` (min 24px), 2px gap; dashed `--color-line-strong` capacity line at `capacity × 28px`; over-capacity days never happen by algorithm, but unscheduled hours show a red "⚠ 3h unscheduled" note on the deadline chip.
-- **WorkBlock**: radius 4, status tint fill, 3px left course stripe, title 13/500 truncated, "2h" meta; hover → `--color-bg-hover` overlay; selected → status solid border 1px. Click → Drawer.
-- **ListView** (also the mobile default): sections **Critical → Time to start → Can wait → Done (collapsed)**; rows 40px with hairline separators: status dot · title · course · "start Tue 17" · "due Fri 20" · hours. No cards.
-- **Drawer** (right, 400px, `--shadow-pop`): title (inline editable), course, deadline, description; **Estimate panel**: AI hours + rationale in grey 12px, editable hours stepper (0.5 step), "Re-estimate" ghost button with spinner; window summary "Start Tue 17 → finish Thu 19 · time to start"; footer: Mark done, Delete (ghost red, inline confirm). `Esc` closes.
-- **Empty state** (no assignments): centered in grid, 1 line + two buttons: `+ Add assignment`, `Import Moodle calendar`.
-- **Primitives**: `Button` (primary accent / secondary outlined `--color-line-strong` / ghost), 32px tall (28px in TopBar), 13/500. `Input` 32px, `--color-bg-subtle` fill, hairline border, focus ring. `Kbd` (11px, bordered). `StatusDot` 8px. `Toast` bottom-center pop for errors (`detail`) and "Saved".
+- **Sidebar**: workspace row (20px dark square with initial + “{name}’s AliveLine”); nav rows with grey icons, active row
+  `bg-hover` + `text`; `MiniMonth` (week row highlighted, deadline dots, today red); **Today** section (status dot · title ·
+  hours) — the core answer; **Courses** with Notion checkboxes in course colour (click toggles visibility); **Log out** at bottom.
+- **TopBar**: breadcrumbs (page emoji + page name / current period). Mobile: menu button left.
+- **PageHeader**: emoji icon, title, grey description.
+- **View bar**: tabs `Week` (W) / `List` (L), blue `+ New` (N). Week toolbar below: period title 14/600 left, `‹ Today ›` ghost right.
+- **WeekGrid**: 7 columns, top hairline, column hairlines, weekend `bg-weekend`; header `Mon` + date number, today in a 24px
+  red circle; past blocks `opacity .6`. 3-day scroll-snap under 768px.
+  - **Deadline row**: `DeadlineChip` = white Notion card (`shadow-card`, 22px) with status dot + title; red “⚠ 3h unscheduled” below; overflow “+2 more”.
+  - **Day body**: `WorkBlock` height `hours × 28px` (min 22), 2px gap, dashed capacity line + “3h / day”.
+- **WorkBlock**: radius 4, status tint, 3px course bar, title 12/500, hours 12 at 70%; hover/press darken overlay; selected 1px status ring.
+- **ListView** (mobile default): Notion table — header row with icons `Aa Name · Status · Course · Start · Due · Hours`;
+  groups Critical → Time to start → Can wait → Done (collapsed toggle) shown as tag + count; 34px rows, status and course as tags;
+  selected row `select` blue.
+- **Side peek** (`AssignmentDrawer`, 520px; bottom sheet 90vh on mobile): `»` close + “Assignment”; 30px bold title input
+  (placeholder “Untitled assignment”); properties: **Status** (tag + start → finish), **Course** (datalist), **Due** (date + Kyiv
+  time + relative), **Source**; overload callout; **Estimate callout** (✦ icon, AI/You label, hours stepper, Re-estimate,
+  rationale); hairline; borderless 16px description. Footer: Save (⌘↵) · Mark done · delete icon with inline confirm.
+- **Empty state**: centred line + `+ Add assignment` / `Import Moodle calendar`.
+- **Primitives**: `Button` primary/secondary/ghost/danger, 32px (28px `sm`), 14/500, radius 4. `IconButton` 28px grey.
+  `Tag`. `Input` 32px. `Alert` = callout. `Stepper` 28px with inset outline. `Kbd` grey text. `Toast` dark snackbar.
 
 ### Other screens
-- **Auth** (`/signin`, `/signup`): centered 360px column on white, logo above, title 20/600, inputs + full-width primary; secondary link below. No card border.
-- **Settings**: same shell, single narrow column (480px), grouped rows with hairlines: name, daily capacity (slider 0.5–12 + value), buffer days (stepper 0–7).
-- **Import**: same shell, narrow column: steps "Moodle → Calendar → Export → .ics" as a numbered list, dropzone (dashed `--color-line-strong`, 120px), result summary row (created / updated / skipped) + progress "Estimating 4/12 with AI…".
-- **Landing** (`/`): white, generous space; hero h1 40–56px/600 "Know when to start, not just when it's due", sub 16px grey; **a static WeekGrid preview** (real component with demo data) as the hero visual; 3-step row (Collect → Estimate → Start on time); early-access form (inline email + button); footer.
+- **Auth**: 320px column, logo, bold title + grey bold subtitle (24px), inputs, full-width 36px blue button, blue underlined link.
+- **Settings**: narrow page, header ⚙️, “My plan” heading with hairline, rows label 14 + grey hint, control right.
+- **Import**: narrow page, header 📥, numbered list (16px), dashed dropzone 120px, counters row, AI progress line, callouts.
+- **Landing**: white, 64px bold headline, 20px grey sub, blue + outlined CTAs, live `WeekGrid` preview in a 12px-radius card,
+  three steps, early-access form, footer.
 
 ### Responsive
-- ≥ 1024: full shell. 768–1023: sidebar collapses to icon rail (toggle), grid shows 7 days narrower.
-- < 768: no sidebar (menu sheet), TopBar compact, **ListView default**, Week view becomes a **3-day** swipeable grid; Drawer becomes a bottom sheet (90vh).
+≥ 1024 full shell · < 1024 sidebar opens as overlay from the menu button · < 768 list view default, 3-day week, peek → bottom sheet.
 
 ## 6. Motion
-Durations 120 ms (hover, press), 180 ms (drawer/sheet slide, popover fade), easing `cubic-bezier(.2,.8,.2,1)`.
-Respect `prefers-reduced-motion` (no slide, just fade). Loading: skeleton blocks in grey `--color-bg-hover`;
-first request may take ~15 s (Aurora wake-up) → after 3 s show "Waking up the server…" under the spinner.
+120 ms hover/press, 180 ms peek/sheet slide and fades, easing `cubic-bezier(.2,.8,.2,1)`. `prefers-reduced-motion` → fades only.
+Skeletons in `bg-hover`; after 3 s show “Waking up the server…” (Aurora resume).
 
 ## 7. Keyboard
-`T` today · `←`/`→` previous/next week · `W` week view · `L` list view · `N` new assignment · `Esc` close drawer/sheet ·
-`⌘/Ctrl+Enter` save in drawer. Shortcuts are disabled while typing in inputs; shown as `Kbd` hints in tooltips.
+`T` today · `←`/`→` week · `W` week · `L` list · `N` new · `Esc` close peek · `⌘/Ctrl+Enter` save. Off while typing.
 
 ## 8. Accessibility
-Contrast ≥ 4.5:1 for text (status texts above are chosen for that on their tints). Status is never colour-only: dot + text label
-in ListView, `aria-label="Lab 3, 2 hours, critical"` on blocks. Grid is a list of days (`role="list"`) for screen readers;
-drawer is a dialog with focus trap; all controls reachable by Tab.
+Text ≥ 4.5:1 (tag palettes chosen for it). Status never colour-only: tag text or `aria-label` on dots/blocks. Grid is
+`role="list"`; view bar is a `tablist`; peek is a dialog with focus trap; everything reachable by Tab.
 
 ## 9. Don'ts
-No Notion name, logo, icons or illustrations · no drop shadows on the canvas · no more than one accent colour ·
-no gradients · no emoji as UI icons (inline SVG 16px, 1.5px stroke) · no full-page modals for editing (use the drawer).
+No Notion name, logo or illustrations · emoji only as page icons (header + breadcrumb), never as buttons/controls (inline SVG 16px, 1.5px stroke) ·
+no gradients · no canvas shadows except Notion cards · one accent (blue) · no full-page modals for editing (use the peek) ·
+no colours or sizes outside this file.

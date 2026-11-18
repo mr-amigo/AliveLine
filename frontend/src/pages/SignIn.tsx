@@ -23,7 +23,7 @@ export default function SignIn() {
       subtitle="Sign in to see what to start today."
       submitLabel="Sign in"
       onSubmit={submit}
-      footer={<>No account yet? <Link to="/signup" className="font-semibold text-accent hover:underline">Sign up</Link></>}
+      footer={<>No account yet? <Link to="/signup" className="text-accent underline underline-offset-2 hover:text-accent-hover">Sign up</Link></>}
     >
       <Field label="Email">
         <Input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@ucu.edu.ua" autoFocus />

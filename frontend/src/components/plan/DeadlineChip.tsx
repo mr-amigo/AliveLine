@@ -10,12 +10,12 @@ export default function DeadlineChip({ a, onSelect }: { a: Assignment; onSelect?
   const label = `${a.title}, due ${kyivTime(a.deadline)}, ${s.label.toLowerCase()}${short ? `, ${short} hours don't fit` : ''}`
   const chip = (
     <>
-      <span className={`flex h-5 min-w-0 items-center gap-1 rounded px-1.5 text-meta font-medium ${s.tint} ${s.text}`}>
-        <Icon name="flag" className="h-3 w-3" />
+      <span className={`flex h-[22px] min-w-0 items-center gap-1 rounded bg-bg px-1.5 text-meta font-medium text-text shadow-card`}>
+        <span aria-hidden="true" className={`h-2 w-2 shrink-0 rounded-full ${s.dot}`} />
         <span className="truncate">{a.title}</span>
       </span>
       {short > 0 && (
-        <span className="flex items-center gap-1 px-0.5 text-tiny font-medium text-critical-text">
+        <span className="flex items-center gap-1 px-0.5 text-tiny font-medium text-critical">
           <Icon name="alert" className="h-3 w-3" />
           <span className="truncate">{hoursLabel(short)} unscheduled</span>
         </span>

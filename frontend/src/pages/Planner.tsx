@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import ListView from '../components/plan/ListView'
 import WeekGrid from '../components/plan/WeekGrid'
 import { useShell } from '../components/shell/AppShell'
+import PageHeader, { PAGE_X } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, IconButton, Loading, Skeleton } from '../components/ui'
 import { useShortcuts } from '../hooks/useShortcuts'
@@ -38,51 +39,64 @@ export default function Planner() {
   const plan = s.plan
   const unscheduled = plan?.assignments.filter((a) => !a.done).reduce((sum, a) => sum + a.window.unscheduled_hours, 0) ?? 0
 
+  const tabs: { v: View; label: string; icon: 'calendar' | 'list'; key: string }[] = [
+    { v: 'week', label: 'Week', icon: 'calendar', key: 'W' },
+    { v: 'list', label: 'List', icon: 'list', key: 'L' },
+  ]
+
   return (
     <>
-      <TopBar
-        title={view === 'week' ? weekTitle(s.week) : 'All assignments'}
-        titleOnMobile={view !== 'week'}
-        left={
-          view === 'week' && (
-            <>
-              <Button variant="secondary" size="sm" onClick={goToday} title="Today (T)">Today</Button>
-              <IconButton label="Previous week (←)" onClick={() => shift(-1)}><Icon name="chevron-left" /></IconButton>
-              <IconButton label="Next week (→)" onClick={() => shift(1)}><Icon name="chevron-right" /></IconButton>
-            </>
-          )
-        }
-        right={
-          <>
-            <div role="group" aria-label="View" className="flex h-7 rounded border border-line-strong p-0.5">
-              {(['week', 'list'] as View[]).map((v) => (
+      <TopBar icon="🗓️" crumbs={['Planner', view === 'week' ? weekTitle(s.week) : 'All assignments']} />
+
+      <div className="flex flex-1 flex-col overflow-y-auto">
+        <PageHeader icon="🗓️" title="Planner" description="When to start each assignment — not just when it’s due." />
+
+        {/* Notion database view bar: view tabs left, actions + blue New right */}
+        <div className={`${PAGE_X} mt-6`}>
+          <div className="flex h-10 items-center gap-1 border-b border-line">
+            <div role="tablist" aria-label="View" className="flex h-full items-center gap-1">
+              {tabs.map((t) => (
                 <button
-                  key={v}
+                  key={t.v}
                   type="button"
-                  aria-pressed={view === v}
-                  title={`${v === 'week' ? 'Week' : 'List'} (${v === 'week' ? 'W' : 'L'})`}
-                  onClick={() => setView(v)}
-                  className={`flex items-center gap-1 rounded-sm px-2 text-meta font-medium ${view === v ? 'bg-bg-hover text-text' : 'text-text-2 hover:text-text'}`}
+                  role="tab"
+                  aria-selected={view === t.v}
+                  title={`${t.label} (${t.key})`}
+                  onClick={() => setView(t.v)}
+                  className={`relative flex h-full items-center gap-1.5 px-1 text-body font-medium after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 ${
+                    view === t.v ? 'text-text after:bg-text' : 'text-text-2 hover:text-text'
+                  }`}
                 >
-                  <Icon name={v === 'week' ? 'calendar' : 'list'} className="md:hidden" />
-                  <span className="hidden md:inline">{v === 'week' ? 'Week' : 'List'}</span>
+                  <span className="flex h-7 items-center gap-1.5 rounded px-1.5 hover:bg-bg-hover">
+                    <Icon name={t.icon} />
+                    {t.label}
+                  </span>
                 </button>
               ))}
             </div>
-            <Button size="sm" onClick={() => s.openAssignment('new')} title="New assignment (N)" aria-label="New assignment">
-              <Icon name="plus" />
-              <span className="hidden sm:inline">New</span>
-            </Button>
-          </>
-        }
-      />
+            <div className="ml-auto flex items-center gap-1">
+              <Button size="sm" onClick={() => s.openAssignment('new')} title="New assignment (N)" aria-label="New assignment">
+                <Icon name="plus" />
+                New
+              </Button>
+            </div>
+          </div>
 
-      <div className="flex flex-1 flex-col overflow-y-auto">
+          {view === 'week' && (
+            <div className="flex h-12 items-center gap-1">
+              <h2 className="mr-auto text-body font-semibold">{weekTitle(s.week)}</h2>
+              <IconButton label="Previous week (←)" onClick={() => shift(-1)}><Icon name="chevron-left" /></IconButton>
+              <Button variant="ghost" size="sm" onClick={goToday} title="Today (T)">Today</Button>
+              <IconButton label="Next week (→)" onClick={() => shift(1)}><Icon name="chevron-right" /></IconButton>
+            </div>
+          )}
+        </div>
+
         {s.error && (
-          <div className="p-3">
+          <div className={`${PAGE_X} py-3`}>
             <Alert>
-              <span className="flex-1">{s.error}</span>
-              <button type="button" className="font-medium underline" onClick={() => void s.reload()}>Try again</button>
+              {s.error}{' '}
+              <button type="button" className="font-medium underline underline-offset-2" onClick={() => void s.reload()}>Try again</button>
             </Alert>
           </div>
         )}
@@ -94,30 +108,28 @@ export default function Planner() {
         ) : (
           <>
             {unscheduled > 0 && (
-              <div className="border-b border-line bg-critical-tint px-4 py-2 text-label text-critical-text" role="status">
-                <span className="inline-flex items-start gap-2">
-                  <Icon name="alert" className="mt-0.5" />
-                  <span>
-                    <strong className="tnum font-semibold">{hoursLabel(unscheduled)}</strong> don't fit before their deadlines — raise daily
-                    hours in{' '}
-                    <Link to="/app/settings" className="font-medium underline underline-offset-2">Settings</Link> or correct estimates.
-                  </span>
-                </span>
+              <div className={`${PAGE_X} pb-3 ${view === 'list' ? 'pt-4' : ''}`}>
+                <Alert>
+                  <strong className="tnum font-semibold">{hoursLabel(unscheduled)}</strong> don’t fit before their deadlines — raise daily hours in{' '}
+                  <Link to="/app/settings" className="font-medium underline underline-offset-2">Settings</Link> or correct estimates.
+                </Alert>
               </div>
             )}
-            {view === 'week' ? (
-              <WeekGrid
-                days={plan.days}
-                assignments={plan.assignments}
-                capacity={plan.capacity}
-                today={plan.today}
-                selectedId={s.selectedId}
-                hidden={s.hidden}
-                onSelect={s.openAssignment}
-              />
-            ) : (
-              <ListView assignments={plan.assignments} today={plan.today} selectedId={s.selectedId} hidden={s.hidden} onSelect={s.openAssignment} />
-            )}
+            <div className={`${PAGE_X} flex flex-1 flex-col ${view === 'list' ? 'pt-2' : ''}`}>
+              {view === 'week' ? (
+                <WeekGrid
+                  days={plan.days}
+                  assignments={plan.assignments}
+                  capacity={plan.capacity}
+                  today={plan.today}
+                  selectedId={s.selectedId}
+                  hidden={s.hidden}
+                  onSelect={s.openAssignment}
+                />
+              ) : (
+                <ListView assignments={plan.assignments} today={plan.today} selectedId={s.selectedId} hidden={s.hidden} onSelect={s.openAssignment} />
+              )}
+            </div>
           </>
         )}
       </div>
@@ -127,10 +139,10 @@ export default function Planner() {
 
 function EmptyState({ onNew }: { onNew: () => void }) {
   return (
-    <div className="grid place-items-center px-4 py-24 text-center">
+    <div className={`${PAGE_X} py-20 text-center`}>
       <div>
         <p className="text-section font-semibold">No assignments yet</p>
-        <p className="mt-1 text-label text-text-2">Add one yourself or bring in every deadline from Moodle at once.</p>
+        <p className="mt-1 text-body text-text-2">Add one yourself or bring in every deadline from Moodle at once.</p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button onClick={onNew}><Icon name="plus" />Add assignment</Button>
           <Link to="/app/import"><Button variant="secondary"><Icon name="upload" />Import Moodle calendar</Button></Link>
@@ -142,8 +154,8 @@ function EmptyState({ onNew }: { onNew: () => void }) {
 
 function PlanSkeleton({ slow }: { slow: boolean }) {
   return (
-    <div>
-      <div className="grid grid-cols-3 md:grid-cols-7">
+    <div className={PAGE_X}>
+      <div className="grid grid-cols-3 border-t border-line md:grid-cols-7">
         {Array.from({ length: 7 }, (_, i) => (
           <div key={i} className={`space-y-1 border-line p-1 ${i ? 'border-l' : ''} ${i > 2 ? 'hidden md:block' : ''}`}>
             <Skeleton className="mb-3 h-6 w-14" />

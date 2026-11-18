@@ -19,15 +19,15 @@ export default function WorkBlock({
   const s = STATUS[item.status]
   const height = Math.max(22, item.hours * HOUR_PX - 2)
   const oneLine = height < 40
-  const className = `relative flex w-full min-w-0 overflow-hidden rounded border-l-[3px] px-1.5 py-1 text-left ${s.tint} ${
+  const className = `relative flex w-full min-w-0 overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left ${s.tint} ${
     s.text
   } ${selected ? `ring-1 ${s.ring}` : ''} ${past ? 'opacity-60' : ''} ${
     oneLine ? 'items-center gap-1.5' : 'flex-col'
-  } transition-shadow duration-[120ms] hover:shadow-[inset_0_0_0_999px_rgba(55,53,47,0.06)]`
+  } transition-shadow duration-[120ms] hover:shadow-[inset_0_0_0_999px_rgba(55,53,47,0.06)] active:shadow-[inset_0_0_0_999px_rgba(55,53,47,0.12)]`
   const content = (
     <>
-      <span className="min-w-0 truncate text-label font-medium">{item.title}</span>
-      <span className="tnum shrink-0 text-meta opacity-80">{hoursLabel(item.hours)}</span>
+      <span className="min-w-0 truncate text-meta font-medium leading-4">{item.title}</span>
+      <span className="tnum shrink-0 text-meta opacity-70">{hoursLabel(item.hours)}</span>
     </>
   )
   const props = {

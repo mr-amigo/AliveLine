@@ -5,7 +5,7 @@ interface ToastState { id: number; text: string; kind: Kind }
 
 const ToastContext = createContext<(text: string, kind?: Kind) => void>(() => undefined)
 
-/** Bottom-centre pop for API errors (`detail`) and confirmations (DESIGN.md §5). */
+/** Bottom-centre dark snackbar (Notion style) for API errors (`detail`) and confirmations (DESIGN.md §5). */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null)
   const timer = useRef<number>()
@@ -24,10 +24,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={toast.id}
             role={toast.kind === 'error' ? 'alert' : 'status'}
-            className={`animate-fade pointer-events-auto max-w-md rounded-md bg-bg px-3.5 py-2 text-label font-medium shadow-pop ${
-              toast.kind === 'error' ? 'text-critical-text' : 'text-text'
-            }`}
+            className="animate-fade pointer-events-auto flex max-w-md items-center gap-2 rounded-md bg-ink px-3.5 py-2 text-body text-white shadow-pop"
           >
+            {toast.kind === 'error' && <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-today" />}
             {toast.text}
           </div>
         )}

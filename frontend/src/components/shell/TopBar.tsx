@@ -2,19 +2,26 @@ import type { ReactNode } from 'react'
 import { Icon, IconButton } from '../ui'
 import { useShell } from './AppShell'
 
-/** 48px bar: [menu on < lg] left controls · title · right controls. */
-export default function TopBar({ title, left, right, titleOnMobile = true }: { title: string; left?: ReactNode; right?: ReactNode; titleOnMobile?: boolean }) {
+/** Notion top bar (44px, no border): [menu on < lg] breadcrumbs · right-side actions. */
+export default function TopBar({ icon, crumbs, right }: { icon: string; crumbs: string[]; right?: ReactNode }) {
   const { openMenu } = useShell()
   return (
-    <header className="flex h-12 shrink-0 items-center gap-1.5 border-b border-line px-3 md:gap-2 md:px-4">
+    <header className="flex h-11 shrink-0 items-center gap-1 px-3">
       <IconButton label="Open menu" className="lg:hidden" onClick={openMenu}>
         <Icon name="menu" />
       </IconButton>
-      {left}
-      <h1 className={`ml-1 min-w-0 truncate text-section font-semibold md:text-title ${titleOnMobile ? '' : 'sr-only sm:not-sr-only'}`}>
-        {title}
-      </h1>
-      <div className="ml-auto flex items-center gap-1.5 md:gap-2">{right}</div>
+      <nav aria-label="Breadcrumb" className="flex min-w-0 items-center text-body text-text">
+        {crumbs.map((c, i) => (
+          <span key={i} className="flex min-w-0 items-center">
+            {i > 0 && <span className="px-0.5 text-text-3">/</span>}
+            <span className={`flex h-6 min-w-0 items-center gap-1.5 rounded px-1.5 ${i === crumbs.length - 1 ? '' : 'text-text-2'}`}>
+              {i === 0 && <span aria-hidden="true" className="text-[14px] leading-none">{icon}</span>}
+              <span className="truncate">{c}</span>
+            </span>
+          </span>
+        ))}
+      </nav>
+      <div className="ml-auto flex items-center gap-1">{right}</div>
     </header>
   )
 }

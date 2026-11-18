@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { aiApi, ApiError, assignmentsApi } from '../../api/client'
 import type { Assignment, AssignmentUpdate, Estimate } from '../../api/types'
 import { addDays, hoursLabel, kyivDate, kyivTime, kyivToUtcIso, mediumDay, relative, shortDay } from '../../lib/dates'
 import { STATUS } from '../../lib/status'
-import StatusDot from '../plan/StatusDot'
-import { Button, Field, Icon, IconButton, Input, Textarea, useToast } from '../ui'
+import { Alert, Button, Icon, IconButton, Tag, useToast, type IconName } from '../ui'
 import EstimatePanel, { type EstimateOrigin } from './EstimatePanel'
 
 interface Props {
@@ -19,7 +18,7 @@ interface Props {
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const errText = (err: unknown) => (err instanceof ApiError ? err.message : 'Something went wrong')
 
-/** Right-side panel (bottom sheet on mobile) to create or edit one assignment (DESIGN.md §5). */
+/** Notion side peek (bottom sheet on mobile) to create or edit one assignment (DESIGN.md §5). */
 export default function AssignmentDrawer({ assignment: a, courses, today, onClose, onOpen, onChanged }: Props) {
   const toast = useToast()
   const panel = useRef<HTMLElement>(null)
@@ -187,6 +186,8 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
   }
 
   const w = a?.window
+  const propInput =
+    'h-[34px] min-w-0 rounded bg-transparent px-2 text-body text-text outline-none transition-colors duration-[120ms] placeholder:text-text-3 hover:bg-bg-hover focus:bg-bg focus:shadow-focus'
   return (
     <>
       <div className="animate-fade fixed inset-0 z-30 bg-black/20 md:hidden" onClick={onClose} aria-hidden="true" />
@@ -197,86 +198,91 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
         aria-labelledby="drawer-title"
         tabIndex={-1}
         onKeyDown={onKeyDown}
-        className="animate-sheet fixed inset-x-0 bottom-0 z-30 flex h-[90vh] flex-col rounded-t-md bg-bg shadow-pop outline-none
-          md:animate-drawer md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[400px] md:rounded-none"
+        className="animate-sheet fixed inset-x-0 bottom-0 z-30 flex h-[90vh] flex-col rounded-t-xl bg-bg shadow-pop outline-none
+          md:animate-drawer md:inset-y-0 md:left-auto md:right-0 md:h-auto md:w-[520px] md:rounded-none md:shadow-peek"
       >
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-4">
-          <h2 id="drawer-title" className="text-label font-medium text-text-2">{a ? 'Assignment' : 'New assignment'}</h2>
-          {a && <span className="text-meta text-text-3">{a.source === 'manual' ? 'added by you' : 'from Moodle calendar'}</span>}
-          <IconButton label="Close (Esc)" className="ml-auto" onClick={onClose}><Icon name="x" /></IconButton>
+        <header className="flex h-11 shrink-0 items-center gap-1 px-3">
+          <IconButton label="Close (Esc)" onClick={onClose}><Icon name="chevrons-right" /></IconButton>
+          <span id="drawer-title" className="ml-1 text-body text-text-2">{a ? 'Assignment' : 'New assignment'}</span>
         </header>
 
-        <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto px-6 pb-10 pt-6 md:px-12">
           <input
             ref={titleRef}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={200}
-            placeholder="Assignment title"
+            placeholder="Untitled assignment"
             aria-label="Title"
-            className={`w-full rounded bg-transparent px-1 py-0.5 -mx-1 text-section font-semibold outline-none placeholder:text-text-3 hover:bg-bg-subtle focus:bg-bg-subtle ${a?.done ? 'line-through text-text-2' : ''}`}
+            className={`w-full bg-transparent text-h1 font-bold tracking-[-0.01em] outline-none placeholder:text-[rgba(55,53,47,0.2)] ${a?.done ? 'text-text-2 line-through' : ''}`}
           />
 
-          {w && (
-            <div className="space-y-1 rounded-md bg-bg-subtle px-3 py-2 text-label">
-              <p className="flex items-center gap-2">
-                <StatusDot status={w.status} label={false} />
-                <span className={`font-medium ${STATUS[w.status].text.replace('line-through', '')}`}>{STATUS[w.status].label}</span>
-                {!a.done && (
-                  <span className="tnum text-text-2">
-                    · start {w.start_date <= today ? 'today' : shortDay(w.start_date)} → finish {shortDay(w.target_finish)}
-                  </span>
-                )}
-              </p>
-              {w.unscheduled_hours > 0 && (
-                <p className="flex items-center gap-1.5 text-meta text-critical-text">
-                  <Icon name="alert" className="h-3.5 w-3.5" />
-                  {hoursLabel(w.unscheduled_hours)} don't fit before the deadline. Raise daily hours in Settings or lower the estimate.
-                </p>
-              )}
-              {dirty && <p className="text-meta text-text-3">Save to update the plan.</p>}
-            </div>
-          )}
+          <dl className="mt-5 space-y-px">
+            {w && (
+              <Property icon="status" label="Status">
+                <div className="flex min-h-[34px] flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1">
+                  <Tag className={`${STATUS[w.status].tint} ${STATUS[w.status].text}`}>{STATUS[w.status].label}</Tag>
+                  {!a.done && (
+                    <span className="tnum text-text-2">
+                      start {w.start_date <= today ? 'today' : shortDay(w.start_date)} → finish {shortDay(w.target_finish)}
+                    </span>
+                  )}
+                </div>
+              </Property>
+            )}
+            <Property icon="tag" label="Course" htmlFor="drawer-course">
+              <input id="drawer-course" list="course-options" value={course} onChange={(e) => setCourse(e.target.value)} maxLength={100} placeholder="Empty" className={`${propInput} w-full`} />
+              <datalist id="course-options">{courses.map((c) => <option key={c} value={c} />)}</datalist>
+            </Property>
+            <Property icon="calendar" label="Due" htmlFor="drawer-date">
+              <div className="flex flex-wrap items-center">
+                <input id="drawer-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className={propInput} />
+                <input type="time" aria-label="Time (Kyiv)" value={time} onChange={(e) => setTime(e.target.value)} required className={propInput} />
+                {date && <span className="px-2 text-meta text-text-3">{mediumDay(date)}, {relative(date, today)}</span>}
+              </div>
+            </Property>
+            {a && (
+              <Property icon="link" label="Source">
+                <span className="flex h-[34px] items-center px-2 text-text-2">{a.source === 'manual' ? 'Added by you' : 'Moodle calendar'}</span>
+              </Property>
+            )}
+          </dl>
 
-          <Field label="Course">
-            <Input list="course-options" value={course} onChange={(e) => setCourse(e.target.value)} maxLength={100} placeholder="No course" />
-            <datalist id="course-options">{courses.map((c) => <option key={c} value={c} />)}</datalist>
-          </Field>
-
-          <div>
-            <div className="grid grid-cols-[1fr_7rem] gap-2">
-              <Field label="Due">
-                <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-              </Field>
-              <Field label="Time (Kyiv)">
-                <Input type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
-              </Field>
-            </div>
-            {date && <p className="mt-1 text-meta text-text-2">{mediumDay(date)}, {relative(date, today)}</p>}
+          <div className="mt-4 space-y-2">
+            {w && w.unscheduled_hours > 0 && (
+              <Alert>{hoursLabel(w.unscheduled_hours)} don’t fit before the deadline. Raise daily hours in Settings or lower the estimate.</Alert>
+            )}
+            <EstimatePanel
+              hours={hours}
+              origin={origin}
+              rationale={rationale}
+              aiHours={aiHours}
+              aiIsAi={aiIsAi}
+              estimating={estimating}
+              canEstimate={title.trim() !== '' && busy === null}
+              onHours={setUserHours}
+              onEstimate={reestimate}
+              onUseAi={() => setUserHours(null)}
+            />
+            {a && dirty && <p className="text-meta text-text-3">Save to update the plan.</p>}
           </div>
 
-          <Field label="Description">
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={10000} placeholder="Paste the task text — the AI estimate uses it" />
-          </Field>
-
-          <EstimatePanel
-            hours={hours}
-            origin={origin}
-            rationale={rationale}
-            aiHours={aiHours}
-            aiIsAi={aiIsAi}
-            estimating={estimating}
-            canEstimate={title.trim() !== '' && busy === null}
-            onHours={setUserHours}
-            onEstimate={reestimate}
-            onUseAi={() => setUserHours(null)}
-          />
+          <div className="mt-6 border-t border-line pt-4">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={10000}
+              aria-label="Description"
+              placeholder="Paste the task text here — the AI estimate reads it…"
+              className="min-h-48 w-full resize-none bg-transparent text-section leading-[1.5] outline-none placeholder:text-text-3"
+            />
+          </div>
         </div>
 
-        <footer className="flex shrink-0 items-center gap-2 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <footer className="flex shrink-0 items-center gap-2 border-t border-line px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-12">
           {confirmDelete ? (
             <>
-              <span className="text-label text-text-2">Delete this assignment?</span>
+              <span className="text-body text-text-2">Delete this assignment?</span>
               <Button variant="danger" className="ml-auto" onClick={remove} loading={busy === 'delete'}>Delete</Button>
               <Button variant="secondary" onClick={() => setConfirmDelete(false)}>Cancel</Button>
             </>
@@ -292,7 +298,7 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
                     {!busy && <Icon name="check" />}
                     {a.done ? 'Reopen' : 'Mark done'}
                   </Button>
-                  <IconButton label="Delete" className="ml-auto hover:bg-critical-tint hover:text-critical-text" onClick={() => setConfirmDelete(true)}>
+                  <IconButton label="Delete" className="ml-auto hover:bg-callout-red hover:text-critical" onClick={() => setConfirmDelete(true)}>
                     <Icon name="trash" />
                   </IconButton>
                 </>
@@ -302,5 +308,18 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
         </footer>
       </section>
     </>
+  )
+}
+
+/** Notion page property: grey icon + label column, editable value on the right. */
+function Property({ icon, label, htmlFor, children }: { icon: IconName; label: string; htmlFor?: string; children: ReactNode }) {
+  return (
+    <div className="flex items-start">
+      <dt className="flex h-[34px] w-32 shrink-0 items-center gap-1.5 px-1.5 text-body text-text-2 sm:w-40">
+        <Icon name={icon} className="text-text-3" />
+        {htmlFor ? <label htmlFor={htmlFor}>{label}</label> : label}
+      </dt>
+      <dd className="min-w-0 flex-1">{children}</dd>
+    </div>
   )
 }

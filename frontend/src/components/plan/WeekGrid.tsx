@@ -44,7 +44,7 @@ export default function WeekGrid({ days, assignments, capacity, today, selectedI
       <div
         role="list"
         aria-label="Week plan"
-        className="grid h-full grid-cols-[repeat(7,minmax(calc((100vw-2rem)/3),1fr))] grid-rows-[auto_auto_1fr] md:grid-cols-7"
+        className="grid h-full grid-cols-[repeat(7,minmax(calc((100vw-3rem)/3),1fr))] grid-rows-[auto_auto_1fr] border-t border-line md:grid-cols-7"
       >
         {days.map((day, i) => {
           const isToday = day.date === today
@@ -54,31 +54,31 @@ export default function WeekGrid({ days, assignments, capacity, today, selectedI
           const due = dueByDay.get(day.date) ?? []
           const planned = items.reduce((sum, it) => sum + it.hours, 0)
           const col = { gridColumn: i + 1 }
-          const sep = i > 0 ? 'border-l border-line' : ''
+          const sep = `${i > 0 ? 'border-l border-line' : ''} ${weekend ? 'bg-bg-weekend' : ''}`
           return (
             <div role="listitem" key={day.date} className="contents" aria-label={`${mediumDay(day.date)}, ${hoursLabel(planned)} planned`}>
               <div
                 ref={isToday ? todayHeader : undefined}
                 style={col}
-                className={`row-start-1 flex snap-start items-center gap-1.5 border-b border-line px-2 py-1.5 text-meta font-medium ${sep} ${
-                  isToday ? 'bg-accent-tint text-text' : weekend ? 'text-text-3' : 'text-text-2'
+                className={`row-start-1 flex h-9 snap-start items-center justify-between gap-1.5 px-2 text-body ${sep} ${
+                  isToday ? 'font-medium text-text' : 'text-text-2'
                 }`}
               >
                 <span>{weekday(day.date)}</span>
                 <span
                   aria-current={isToday ? 'date' : undefined}
-                  className={`tnum grid h-6 min-w-6 place-items-center rounded-full px-1 ${isToday ? 'bg-accent font-semibold text-white' : ''}`}
+                  className={`tnum grid h-6 min-w-6 place-items-center rounded-full px-1 ${isToday ? 'bg-today font-semibold text-white' : ''}`}
                 >
                   {dayNum(day.date)}
                 </span>
               </div>
 
-              <div style={col} className={`row-start-2 flex min-h-8 min-w-0 flex-col gap-0.5 border-b border-line p-1 ${sep}`}>
+              <div style={col} className={`row-start-2 flex min-h-8 min-w-0 flex-col gap-1 border-b border-line p-1 ${sep}`}>
                 {due.slice(0, MAX_CHIPS).map((a) => (
                   <DeadlineChip key={a.id} a={a} onSelect={onSelect} />
                 ))}
                 {due.length > MAX_CHIPS && (
-                  <span className="px-1 text-tiny font-medium text-text-2" title={due.slice(MAX_CHIPS).map((a) => a.title).join('\n')}>
+                  <span className="px-1 text-meta text-text-2" title={due.slice(MAX_CHIPS).map((a) => a.title).join('\n')}>
                     +{due.length - MAX_CHIPS} more
                   </span>
                 )}

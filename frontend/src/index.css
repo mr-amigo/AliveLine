@@ -1,35 +1,56 @@
 @import "tailwindcss";
 
-/* Tokens: docs/DESIGN.md §2–4 */
+/* Tokens: docs/DESIGN.md §2–4 (Notion light theme) */
 @theme {
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica,
+    "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";
 
   --color-bg: #ffffff;
   --color-bg-subtle: #f7f7f5;
-  --color-bg-hover: #efefed;
+  --color-bg-weekend: #fbfbfa;
+  --color-bg-hover: rgba(55, 53, 47, 0.08);
+  --color-bg-press: rgba(55, 53, 47, 0.16);
   --color-line: #e9e9e7;
-  --color-line-strong: #d9d9d6;
+  --color-line-strong: #dddcda;
   --color-text: #37352f;
+  --color-text-sidebar: #5f5e5b;
   --color-text-2: #787774;
-  --color-text-3: #a5a29c;
-  --color-accent: #16a34a;
-  --color-accent-tint: #e8f5ec;
+  --color-text-3: #9b9a97;
+  --color-accent: #2383e2;
+  --color-accent-hover: #0077d4;
+  --color-accent-tint: #e7f3f8;
+  --color-select: rgba(35, 131, 226, 0.14);
+  --color-today: #eb5757;
+  --color-ink: #2f2f2f;
 
-  --color-critical-tint: #fbe4e4;
-  --color-critical-text: #9f2f2d;
-  --color-critical: #e03e3e;
-  --color-start-tint: #faebdd;
-  --color-start-text: #8a4b0f;
+  /* Callout / block backgrounds */
+  --color-callout: #f1f1ef;
+  --color-callout-red: #fdebec;
+  --color-callout-orange: #fbecdd;
+  --color-callout-green: #edf3ec;
+
+  /* Status = Notion select tags: tint (tag bg) / text (tag fg) / solid (dots, rings) */
+  --color-critical-tint: #ffe2dd;
+  --color-critical-text: #5d1715;
+  --color-critical: #d44c47;
+  --color-start-tint: #fadec9;
+  --color-start-text: #49290e;
   --color-start: #d9730d;
-  --color-wait-tint: #eaeae8;
-  --color-wait-text: #5a5955;
+  --color-wait-tint: #e3e2e0;
+  --color-wait-text: #32302c;
   --color-wait: #9b9a97;
-  --color-done-tint: #ddedea;
-  --color-done-text: #2b6a5e;
-  --color-done: #0f7b6c;
+  --color-done-tint: #dbeddb;
+  --color-done-text: #1c3829;
+  --color-done: #448361;
 
+  --text-page: 40px;
+  --text-page--line-height: 48px;
+  --text-h1: 30px;
+  --text-h1--line-height: 39px;
+  --text-h2: 24px;
+  --text-h2--line-height: 31px;
   --text-title: 20px;
-  --text-title--line-height: 28px;
+  --text-title--line-height: 26px;
   --text-section: 16px;
   --text-section--line-height: 24px;
   --text-body: 14px;
@@ -42,6 +63,11 @@
   --text-tiny--line-height: 14px;
 
   --shadow-pop: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
+  --shadow-peek: 0 0 0 1px rgba(15, 15, 15, 0.04), 0 3px 6px rgba(15, 15, 15, 0.03), 0 9px 24px rgba(15, 15, 15, 0.06);
+  --shadow-card: 0 0 0 1px rgba(15, 15, 15, 0.1), 0 2px 4px rgba(15, 15, 15, 0.1);
+  --shadow-outline: inset 0 0 0 1px rgba(15, 15, 15, 0.1);
+  --shadow-btn: inset 0 0 0 1px rgba(55, 53, 47, 0.16);
+  --shadow-focus: inset 0 0 0 1px rgba(35, 131, 226, 0.57), 0 0 0 2px rgba(35, 131, 226, 0.35);
   --ease-calm: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --animate-drawer: drawer-in 180ms var(--ease-calm);
@@ -65,10 +91,12 @@
 @layer base {
   body {
     @apply bg-bg text-body text-text font-sans antialiased;
-    font-feature-settings: "cv11", "ss01";
+  }
+  ::selection {
+    background: rgba(35, 131, 226, 0.28);
   }
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid rgba(35, 131, 226, 0.6);
     outline-offset: 1px;
   }
   .tnum {
