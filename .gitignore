@@ -231,3 +231,6 @@ example/
 .DS_Store
 # personal calendar exports
 *.ics
+
+# User feedback raw data and report (submitted separately)
+docs/feedback/
