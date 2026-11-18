@@ -121,7 +121,12 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
         if (deadlineChanged) body.deadline = deadlineIso
         if (userHours !== a.user_hours) body.user_hours = userHours
         if (pending) body.estimate = pending
-        await assignmentsApi.update(a.id, body)
+        const saved = await assignmentsApi.update(a.id, body)
+        // Mirror what the server stored (it trims text), so the form isn't left "dirty".
+        setTitle(saved.title)
+        setDescription(saved.description)
+        setCourse(saved.course_name ?? '')
+        setUserHours(saved.user_hours)
         setPending(null)
         await onChanged()
         toast('Saved')
