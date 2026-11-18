@@ -1,0 +1,35 @@
+# Prod-like local run (app + Postgres):  docker compose -f infra/docker-compose.yml up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: aliveline
+      POSTGRES_PASSWORD: aliveline
+      POSTGRES_DB: aliveline
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aliveline -d aliveline"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      ENV: prod
+      SECRET_KEY: ${SECRET_KEY:-local-compose-secret-not-for-real-use}
+      DATABASE_URL: postgresql://aliveline:aliveline@db:5432/aliveline
+      COOKIE_SECURE: "false" # plain http on localhost
+      APP_TZ: Europe/Kyiv
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
