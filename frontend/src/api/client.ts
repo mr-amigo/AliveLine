@@ -1,4 +1,16 @@
-import type { SettingsUpdate, SignInData, SignUpData, User } from './types'
+import type {
+  Assignment,
+  AssignmentCreate,
+  AssignmentUpdate,
+  Estimate,
+  EstimateRequest,
+  ImportResult,
+  Plan,
+  SettingsUpdate,
+  SignInData,
+  SignUpData,
+  User,
+} from './types'
 
 export class ApiError extends Error {
   constructor(
@@ -71,4 +83,26 @@ export const settingsApi = {
 
 export const waitlistApi = {
   join: (email: string) => api.post<void>('/waitlist', { email }),
+}
+
+export const planApi = {
+  get: (from: string, days = 7) => api.get<Plan>(`/plan?from=${from}&days=${days}`),
+}
+
+export const assignmentsApi = {
+  create: (data: AssignmentCreate) => api.post<Assignment>('/assignments', data),
+  update: (id: number, data: AssignmentUpdate) => api.patch<Assignment>(`/assignments/${id}`, data),
+  remove: (id: number) => api.del(`/assignments/${id}`),
+}
+
+export const aiApi = {
+  estimate: (data: EstimateRequest) => api.post<Estimate>('/ai/estimate', data),
+}
+
+export const importApi = {
+  ics: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post<ImportResult>('/import/ics', form)
+  },
 }

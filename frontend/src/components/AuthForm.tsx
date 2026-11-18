@@ -1,10 +1,9 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError } from '../api/client'
 import Logo from './Logo'
-import { Alert, Button, Card } from './ui'
+import { Alert, Button } from './ui'
 
-/** Shared shell for sign-in / sign-up: layout, submit handling, error display. */
+/** Shared shell for sign-in / sign-up: centred 360px column, submit handling, error display (DESIGN.md §5). */
 export default function AuthForm({
   title,
   subtitle,
@@ -30,25 +29,25 @@ export default function AuthForm({
     try {
       await onSubmit()
     } catch (err) {
-      setError(err instanceof ApiError || err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : 'Something went wrong')
       setBusy(false)
     }
   }
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-12">
-      <div className="mb-8"><Logo /></div>
-      <Card className="w-full max-w-sm">
-        <h1 className="text-xl font-bold">{title}</h1>
-        <p className="mt-1 mb-6 text-sm text-muted">{subtitle}</p>
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+      <div className="w-full max-w-[360px]">
+        <Logo />
+        <h1 className="mt-8 text-title font-semibold">{title}</h1>
+        <p className="mt-1 mb-6 text-body text-text-2">{subtitle}</p>
+        <form onSubmit={handleSubmit} className="space-y-3" noValidate>
           {children}
           {error && <Alert>{error}</Alert>}
-          <Button type="submit" loading={busy} className="w-full">{submitLabel}</Button>
+          <Button type="submit" loading={busy} className="mt-2 w-full">{submitLabel}</Button>
         </form>
-      </Card>
-      <p className="mt-6 text-sm text-muted">{footer}</p>
-      <Link to="/" className="mt-2 text-xs text-muted hover:text-ink">← Back to home</Link>
+        <p className="mt-6 text-label text-text-2">{footer}</p>
+        <Link to="/" className="mt-2 inline-block text-meta text-text-3 hover:text-text">Back to home</Link>
+      </div>
     </div>
   )
 }

@@ -1,21 +1,87 @@
 @import "tailwindcss";
 
+/* Tokens: docs/DESIGN.md §2–4 */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --color-bg: #fafaf7;
-  --color-ink: #1c1c1e;
-  --color-muted: #6b6b70;
-  --color-line: #e7e5df;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-bg: #ffffff;
+  --color-bg-subtle: #f7f7f5;
+  --color-bg-hover: #efefed;
+  --color-line: #e9e9e7;
+  --color-line-strong: #d9d9d6;
+  --color-text: #37352f;
+  --color-text-2: #787774;
+  --color-text-3: #a5a29c;
   --color-accent: #16a34a;
-  --color-accent-dark: #15803d;
-  --color-accent-soft: #dcfce7;
-  --color-wait: #64748b;
-  --color-start: #d97706;
-  --color-critical: #dc2626;
+  --color-accent-tint: #e8f5ec;
+
+  --color-critical-tint: #fbe4e4;
+  --color-critical-text: #9f2f2d;
+  --color-critical: #e03e3e;
+  --color-start-tint: #faebdd;
+  --color-start-text: #8a4b0f;
+  --color-start: #d9730d;
+  --color-wait-tint: #eaeae8;
+  --color-wait-text: #5a5955;
+  --color-wait: #9b9a97;
+  --color-done-tint: #ddedea;
+  --color-done-text: #2b6a5e;
+  --color-done: #0f7b6c;
+
+  --text-title: 20px;
+  --text-title--line-height: 28px;
+  --text-section: 16px;
+  --text-section--line-height: 24px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-label: 13px;
+  --text-label--line-height: 18px;
+  --text-meta: 12px;
+  --text-meta--line-height: 16px;
+  --text-tiny: 11px;
+  --text-tiny--line-height: 14px;
+
+  --shadow-pop: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
+  --ease-calm: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-drawer: drawer-in 180ms var(--ease-calm);
+  --animate-sheet: sheet-in 180ms var(--ease-calm);
+  --animate-fade: fade-in 180ms var(--ease-calm);
+
+  @keyframes drawer-in {
+    from { transform: translateX(16px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes sheet-in {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 }
 
 @layer base {
   body {
-    @apply bg-bg text-ink font-sans antialiased;
+    @apply bg-bg text-body text-text font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-drawer"],
+  [class*="animate-sheet"] {
+    animation: var(--animate-fade) !important;
+  }
+  * {
+    transition-duration: 0ms !important;
   }
 }

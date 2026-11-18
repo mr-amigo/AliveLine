@@ -253,13 +253,13 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: real Moodle export imports on live.
 
 ### Phase 7 — Product UI (docs/DESIGN.md)
-- [ ] load `frontend-design` skill once; tokens from DESIGN.md §2–4 into `index.css` `@theme`; Inter; ui primitives restyled (Button, Input, Kbd, Toast, Skeleton)
-- [ ] App shell: Sidebar (MiniMonth, TodayList, Courses), TopBar (Today, ‹ ›, title, Week|List, + New); routes per §8
-- [ ] WeekGrid (deadline row, height ∝ hours, capacity line, today column) + ListView (status sections); usePlan(week)
-- [ ] AssignmentDrawer: create/edit, EstimatePanel (calls /ai/estimate, rationale, HoursStepper), mark done, delete
-- [ ] Import page (dropzone, steps, AI pass over `created_ids`), Settings + Auth restyle, Landing with WeekGrid preview
-- [ ] overload banner when any open item has `unscheduled_hours` (sum them: "X h don't fit — raise daily hours in Settings or correct estimates")
-- [ ] keyboard shortcuts (DESIGN §7), responsive (§5: list + 3-day + bottom sheet on mobile), empty/loading/"waking up"/error states
+- [x] load `frontend-design` skill once; tokens from DESIGN.md §2–4 into `index.css` `@theme`; Inter; ui primitives restyled (Button, Input, Kbd, Toast, Skeleton)
+- [x] App shell: Sidebar (MiniMonth, TodayList, Courses), TopBar (Today, ‹ ›, title, Week|List, + New); routes per §8
+- [x] WeekGrid (deadline row, height ∝ hours, capacity line, today column) + ListView (status sections); usePlan(week)
+- [x] AssignmentDrawer: create/edit, EstimatePanel (calls /ai/estimate, rationale, HoursStepper), mark done, delete
+- [x] Import page (dropzone, steps, AI pass over `created_ids`), Settings + Auth restyle, Landing with WeekGrid preview
+- [x] overload banner when any open item has `unscheduled_hours` (sum them: "X h don't fit — raise daily hours in Settings or correct estimates")
+- [x] keyboard shortcuts (DESIGN §7), responsive (§5: list + 3-day + bottom sheet on mobile), empty/loading/"waking up"/error states
 - [ ] `make aws-publish`
 - DoD: on live site: sign up → import .ics → week grid shows blocks/deadlines → correct hours in drawer → statuses update; works at 375px.
 
@@ -281,3 +281,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 5 done: AI Lambda live at /api/ai/estimate via OpenAI gpt-4.1-mini (Bedrock blocked: 0 quota / 403 in the shared account, support pending; code supports it). 46 tests green. Live: 401 without cookie, Ukrainian course project → 30 h with Ukrainian rationale (5.6 s cold), create with estimate → planned 3 h/day.
 - 2026-11-18 — Phase 6 done: .ics import (IcsSource adapter, ImportService upsert by UID, MoodleApiSource stub), 57 tests green, live smoke OK. Heuristic now matches title before description ("Lab … write tests" was exam prep). Pending: try a real UCU Moodle export.
 - 2026-11-18 — Phase 6 closed with the real export. It also exposed a planner flaw under overload (today went to far-off homework) → planner now EDF order + ALAP placement (§4); 59 tests green; deployed. Real calendar left in the test account for phase 7 UI work (19 items, 14 critical at 3 h/day).
+- 2026-11-18 — Phase 7 (code) done: Notion-style shell (Sidebar w/ MiniMonth/Today/Courses toggles, TopBar), WeekGrid (deadline row, height ∝ hours, capacity line, 3-day swipe on mobile) + ListView, AssignmentDrawer (AI estimate on create/re-estimate, hours stepper, done, delete w/ inline confirm, ⌘↵, Esc, focus trap; bottom sheet on mobile), Import (dropzone + AI pass over `created_ids`), Settings/Auth/Landing restyled, overload banner, shortcuts, waking-up/empty/error states. Course colour = hash of course name (API has no course_id); 768–1023 uses the overlay menu instead of an icon rail. Fixed root .gitignore `lib/` swallowing `frontend/src/lib` (Tailwind skipped it too). Verified in headless Chromium (desktop + 390px). Remaining: `make aws-publish`.
