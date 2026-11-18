@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.security import decode_access_token
+from app.domain.estimation import Estimator, HeuristicEstimator
 from app.models import User
 
 
@@ -24,3 +25,9 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if user is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     return user
+
+
+def get_estimator() -> Estimator:
+    """Server-side estimator. The backend Lambda has no route to Bedrock, so it is the heuristic;
+    AI estimates arrive from the client (see docs/PLAN.md §5). Overridable in tests."""
+    return HeuristicEstimator()
