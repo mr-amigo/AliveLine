@@ -115,7 +115,6 @@ About **$1/month** idle, with a $5/month AWS Budget alert. The first request aft
 | `COOKIE_SECURE` | `false` | `true` behind HTTPS (set on AWS) |
 | `APP_TZ` | `Europe/Kyiv` | Time zone for day-based planning |
 | `OPENAI_API_KEY` | empty | Enables AI estimates via OpenAI (AI Lambda; root `.env` for `make aws-ai`) |
-| `VITE_GOATCOUNTER` | empty | GoatCounter site code for cookieless page counts (root `.env`, baked in by `make aws-publish`) |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | OpenAI model for estimates |
 | `PORT` | `8000` | Port of the all-in-one container |
 

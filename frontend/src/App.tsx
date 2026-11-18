@@ -1,9 +1,7 @@
-import { useEffect } from 'react'
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import RequireAuth from './auth/RequireAuth'
 import AppShell from './components/shell/AppShell'
-import { countPage } from './lib/analytics'
 import Import from './pages/Import'
 import { Contact, Privacy, Terms, Thanks } from './pages/Info'
 import Landing from './pages/Landing'
@@ -21,9 +19,6 @@ function PublicOnly({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
-  const { pathname } = useLocation()
-  useEffect(() => countPage(pathname), [pathname])
-
   return (
     <Routes>
       <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />

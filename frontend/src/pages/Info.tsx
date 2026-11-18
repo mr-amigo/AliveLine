@@ -27,11 +27,10 @@ export function Privacy() {
           When you ask for an estimate or for steps, the assignment’s title, description and course name are sent to OpenAI
           (model gpt-4.1-mini) to suggest hours. Your name and email are not sent. OpenAI does not use API data to train its models.
         </p>
-        <h2>Cookies and analytics</h2>
+        <h2>Cookies</h2>
         <p>
           We set one cookie, <code>al_session</code>, which keeps you signed in. It is strictly necessary, so there is no
-          cookie banner. Page visits are counted with GoatCounter, which uses no cookies and stores no personal data: only
-          the page, the referring site, and the browser and screen size in aggregate.
+          cookie banner. There are no analytics or tracking scripts.
         </p>
         <h2>Where it lives</h2>
         <p>
