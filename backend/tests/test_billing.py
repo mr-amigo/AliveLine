@@ -153,3 +153,12 @@ def test_reset_billing_gives_a_fresh_free_account(signed_in):
         assert billing_service.reset_billing(db, "ana@ucu.edu.ua") == {"reset": True}
     b = signed_in.get("/api/billing").json()
     assert b["plan"] == "free" and b["trials_left"]["steps"] == 3 and b["ai_used"] == 0
+
+
+def test_cancel_at_period_end_keeps_pro_but_marks_it_ending(signed_in, paddle_secret):
+    ev = _sub_event("evt_c1", "active", "2026-11-18T10:00:00Z")
+    ev["event_type"] = "subscription.updated"
+    ev["data"]["scheduled_change"] = {"action": "cancel", "effective_at": "2099-01-01T00:00:00Z"}
+    assert _send(signed_in, ev).json() == {"result": "pro (active)"}
+    b = signed_in.get("/api/billing").json()
+    assert b["plan"] == "pro" and b["subscription_status"] == "cancels"

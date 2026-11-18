@@ -164,7 +164,9 @@ def _apply_subscription(db: Session, data: dict[str, Any], occurred_at: datetime
     status = str(data.get("status", ""))
     period_end = _parse_dt((data.get("current_billing_period") or {}).get("ends_at"))
     user.plan, user.plan_until = billing.subscription_plan(status, period_end)
-    user.paddle_status = status
+    # Cancelled in the portal: Paddle keeps "active" until the period ends, with a scheduled cancel.
+    scheduled = data.get("scheduled_change") or {}
+    user.paddle_status = "cancels" if status in billing.PRO_STATUSES and scheduled.get("action") == "cancel" else status
     user.paddle_subscription_id = data.get("id") or user.paddle_subscription_id
     user.paddle_customer_id = data.get("customer_id") or user.paddle_customer_id
     user.billing_event_at = occurred_at

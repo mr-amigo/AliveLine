@@ -60,7 +60,7 @@ export default function PlanSection() {
               <span className="text-text-2">
                 {pro
                   ? b.plan_until
-                    ? ` · ${b.subscription_status === 'canceled' ? 'ends' : 'renews'} ${new Date(b.plan_until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
+                    ? ` · ${b.subscription_status === 'cancels' || b.subscription_status === 'canceled' ? 'ends' : 'renews'} ${new Date(b.plan_until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`
                     : ''
                   : ' · deadlines, Moodle import, planner and AI estimates, free for good'}
               </span>
