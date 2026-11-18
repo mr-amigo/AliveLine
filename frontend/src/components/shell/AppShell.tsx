@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useOutletContext, useSearchParams } from 'react-router-dom'
-import { useAutoEstimate } from '../../hooks/useAutoEstimate'
 import { usePlan, type PlanState } from '../../hooks/usePlan'
-import { useAuth } from '../../auth/AuthContext'
 import { billingStore } from '../../lib/billing'
 import { isValidDate, isView, todayKyiv, viewRange, type CalView, type View } from '../../lib/dates'
 import AssignmentDrawer from '../assignment/AssignmentDrawer'
@@ -23,8 +21,6 @@ export interface ShellContext extends PlanState {
   openAssignment: (id: number | 'new') => void
   hidden: Set<string>
   openMenu: () => void
-  /** Background AI estimating of rough estimates (null when idle). */
-  aiProgress: { done: number; total: number } | null
 }
 
 export const useShell = () => useOutletContext<ShellContext>()
@@ -65,8 +61,6 @@ export default function AppShell() {
   const today = plan?.today ?? clientToday
 
   const [hidden, setHidden] = useState(loadHidden)
-  const { user } = useAuth()
-  const aiProgress = useAutoEstimate(plan, user?.ai_estimates !== false, reload)
   useEffect(() => {
     billingStore.load().catch(() => undefined) // limits are shown as hints only; AI calls re-check on the server
   }, [])
@@ -146,7 +140,6 @@ export default function AppShell() {
     openAssignment,
     hidden,
     openMenu: () => setMenuOpen(true),
-    aiProgress,
   }
 
   return (

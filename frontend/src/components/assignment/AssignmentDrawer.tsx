@@ -105,7 +105,7 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
       const base = { title: title.trim(), description, deadline: deadlineIso }
       if (!a) {
         let estimate = pending
-        if (userHours === null && !estimate && user?.ai_estimates !== false) {
+        if (userHours === null && !estimate) {
           setEstimating(true)
           estimate = await requestEstimate() // null → server uses its rule-based estimate
           setEstimating(false)

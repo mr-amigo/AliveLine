@@ -37,7 +37,6 @@ export default function Settings() {
   const [interleave, setInterleave] = useState(user?.interleave ?? true)
   const [suggestSteps, setSuggestSteps] = useState(user?.suggest_steps ?? true)
   const [showAtRisk, setShowAtRisk] = useState(user?.show_at_risk ?? true)
-  const [aiEstimates, setAiEstimates] = useState(user?.ai_estimates ?? true)
   const [busy, setBusy] = useState(false)
 
   const dirty =
@@ -50,8 +49,7 @@ export default function Settings() {
       minSession !== user.min_session_hours ||
       interleave !== user.interleave ||
       suggestSteps !== user.suggest_steps ||
-      showAtRisk !== user.show_at_risk ||
-      aiEstimates !== user.ai_estimates)
+      showAtRisk !== user.show_at_risk)
   const setDay = (i: number, v: number) => setWeekdays((w) => (w ? w.map((h, j) => (j === i ? v : h)) : w))
 
   async function submit(e: FormEvent) {
@@ -71,7 +69,6 @@ export default function Settings() {
           interleave,
           suggest_steps: suggestSteps,
           show_at_risk: showAtRisk,
-          ai_estimates: aiEstimates,
         }),
       )
       await reload()
@@ -159,20 +156,6 @@ export default function Settings() {
 
           <Row label="Shortest session" hint="Don’t split an assignment into pieces smaller than this, unless a deadline leaves no choice.">
             <Stepper label="shortest session hours" value={minSession} onChange={setMinSession} min={0.5} max={4} step={0.5} />
-          </Row>
-
-          <Row
-            label="Estimate with AI"
-            hint="AI reads every assignment and estimates the hours. Turn off for instant rough estimates from the title; you can still ask AI for one."
-            htmlFor="ai-estimates"
-          >
-            <input
-              id="ai-estimates"
-              type="checkbox"
-              checked={aiEstimates}
-              onChange={(e) => setAiEstimates(e.target.checked)}
-              className="h-4 w-4 accent-accent"
-            />
           </Row>
 
           <Row label="Suggest steps" hint="For big tasks, AI offers to split the work into ordered steps (research, code, report…)." htmlFor="suggest-steps">

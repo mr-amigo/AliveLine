@@ -20,7 +20,7 @@ def claim(data: ClaimIn, user: User = Depends(current_user), db: Session = Depen
     """Counts an AI use against the plan's limits; the token goes to the AI Lambda in `X-AI-Claim`.
     402 = Pro needed (trials used up), 429 = monthly AI cap."""
     try:
-        out = billing_service.claim(db, user, Feature(data.feature), data.assignment_id)
+        out = billing_service.claim(db, user, Feature(data.feature), data.assignment_id, data.count)
     except LimitReached as e:
         code = status.HTTP_402_PAYMENT_REQUIRED if e.pro_required else status.HTTP_429_TOO_MANY_REQUESTS
         raise HTTPException(code, str(e)) from e

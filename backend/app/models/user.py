@@ -22,8 +22,6 @@ class User(Base):
     interleave: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     suggest_steps: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     #: Planner shows the "won't fit in time" summary.
-    #: AI estimates every assignment (default); off → instant rule-based "rough" estimates, AI only on request.
-    ai_estimates: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     show_at_risk: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     # Billing (Paddle) + usage limits (domain/billing.py).
     plan: Mapped[str] = mapped_column(String(10), default="free", server_default=text("'free'"))

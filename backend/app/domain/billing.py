@@ -13,10 +13,11 @@ class Feature(str, Enum):
     ESTIMATE = "estimate"  # first AI estimate of an assignment (core, free)
     REESTIMATE = "reestimate"  # asking AI again for an assignment it already estimated
     STEPS = "steps"  # AI split into ordered steps
+    BULK = "bulk"  # "Estimate all with AI"
 
 
 #: Lifetime trial uses on Free for each Pro feature.
-TRIALS: dict[Feature, int] = {Feature.REESTIMATE: 3, Feature.STEPS: 3}
+TRIALS: dict[Feature, int] = {Feature.REESTIMATE: 3, Feature.STEPS: 3, Feature.BULK: 3}
 #: AI estimate calls per calendar month (fair use; Pro only guards against runaway scripts).
 MONTHLY_AI = {"free": 100, "pro": 1000}
 #: Paddle retries failed renewals for a few days; keep Pro meanwhile.

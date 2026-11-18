@@ -122,7 +122,7 @@ Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum
   14/600 left, `‹ Today ›` ghost right (moves one period). URL `?view=day|3day|week|month|list&date=YYYY-MM-DD` (date omitted = today).
 - **Won't fit**: compact ghost button in the view bar (red dot · count · “won’t fit” ▾); click opens a 320px popover (`shadow-pop`) listing
   items with “Xh short · due …”. Off via Settings “Warn about late work”. No page-wide red callout.
-- **AI estimating**: while the background pass runs, a small spinner + “AI estimating 3/12” sits in the view bar (no callout).
+- **Callout above the grid**: “N rough estimates · Estimate all with AI” (grey, sparkle icon, “N free tries left” on Free).
 - **Pro hints**: next to Pro features on Free, grey “N free tries left”, then a blue “Upgrade to Pro” link (→ Settings → Plan).
 - **Settings → Plan**: plan line, AI estimates used this month, trial list, grey Pro callout with `$3 / month` (primary) and
   `$24 / year` (secondary) opening Paddle's overlay; on Pro “Manage subscription” (Paddle portal).

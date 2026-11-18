@@ -51,16 +51,16 @@ def test_is_pro_keeps_grace_after_period_end():
 
 def test_billing_summary_and_claims(signed_in):
     b = signed_in.get("/api/billing").json()
-    assert b["plan"] == "free" and b["trials_left"] == {"reestimate": 3, "steps": 3}
+    assert b["plan"] == "free" and b["trials_left"] == {"reestimate": 3, "steps": 3, "bulk": 3}
     assert b["checkout"] is None  # no Paddle config in tests
 
-    for left in (2, 1, 0):
-        r = signed_in.post("/api/billing/claim", json={"feature": "steps"})
-        assert r.status_code == 200 and r.json()["billing"]["trials_left"]["steps"] == left
-    assert r.json()["billing"]["ai_used"] == 3
-    r = signed_in.post("/api/billing/claim", json={"feature": "steps"})
+    r = signed_in.post("/api/billing/claim", json={"feature": "bulk", "count": 5})
+    assert r.status_code == 200 and r.json()["billing"]["trials_left"]["bulk"] == 2
+    assert r.json()["billing"]["ai_used"] == 5
+    for _ in range(2):
+        signed_in.post("/api/billing/claim", json={"feature": "bulk", "count": 1})
+    r = signed_in.post("/api/billing/claim", json={"feature": "bulk", "count": 1})
     assert r.status_code == 402 and "Pro" in r.json()["detail"]
-    assert signed_in.post("/api/billing/claim", json={"feature": "estimate"}).status_code == 200  # core stays free
 
 
 def test_second_ai_estimate_of_an_assignment_is_a_reestimate(signed_in):

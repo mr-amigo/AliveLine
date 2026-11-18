@@ -13,6 +13,7 @@ const PRO = [
   'Everything in Free',
   'AI steps: big tasks split into ordered parts',
   'Re-estimate with AI as often as you like',
+  'Estimate all rough estimates in one click',
   '1,000 AI estimates a month',
 ]
 
