@@ -47,7 +47,7 @@ build: ## Build the all-in-one Docker image (infra/Dockerfile)
 
 # ---------------------------------------------------------------- AWS
 .PHONY: aws-check aws-deploy aws-ecr aws-push aws-backend aws-migrate aws-ai aws-frontend aws-publish \
-        aws-url aws-health aws-logs aws-ai-logs aws-destroy
+        aws-stats aws-delete-user aws-url aws-health aws-logs aws-ai-logs aws-destroy
 
 aws-check: ## Verify AWS credentials from .env
 	@aws sts get-caller-identity --query '[Account, Arn]' --output text \
@@ -79,6 +79,19 @@ aws-migrate: ## Create tables inside the Lambda (wakes Aurora if paused)
 	  --payload '{"action": "migrate"}' --cli-read-timeout 0 --query FunctionError --output text "$$resp"); \
 	echo "Migrate: $$(cat $$resp)"; rm -f "$$resp"; \
 	[ "$$err" = None ] || { echo "Migration failed ($$err): make aws-logs"; exit 1; }
+
+aws-stats: ## Print product metrics: waitlist, users, returning users (≥ 2 login days), assignments
+	@resp=$$(mktemp); \
+	err=$$(aws lambda invoke --function-name $(FUNCTION) --cli-binary-format raw-in-base64-out \
+	  --payload '{"action": "stats"}' --cli-read-timeout 0 --query FunctionError --output text "$$resp"); \
+	echo "Stats: $$(cat $$resp)"; rm -f "$$resp"; \
+	[ "$$err" = None ] || { echo "Stats failed ($$err): make aws-logs"; exit 1; }
+
+aws-delete-user: ## Delete one account and its data: make aws-delete-user EMAIL=x@ucu.edu.ua
+	@test -n "$(EMAIL)" || { echo "Usage: make aws-delete-user EMAIL=..."; exit 1; }; resp=$$(mktemp); \
+	aws lambda invoke --function-name $(FUNCTION) --cli-binary-format raw-in-base64-out \
+	  --payload '{"action": "delete_user", "email": "$(EMAIL)"}' --cli-read-timeout 0 --output text "$$resp" >/dev/null; \
+	echo "Delete $(EMAIL): $$(cat $$resp)"; rm -f "$$resp"
 
 aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$(TAG)
 	@uri=$$($(call out,$(ECR_STACK),RepositoryUri)); secret=$$($(call out,$(BACKEND_STACK),AppSecretArn)); \
