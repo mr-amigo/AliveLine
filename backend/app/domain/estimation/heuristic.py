@@ -16,16 +16,21 @@ _WORDS_PER_EXTRA_HOUR = 150
 _MAX_EXTRA_HOURS = 4.0
 
 
+def _match(text: str) -> tuple[str, float] | None:
+    lowered = text.lower()
+    for name, keywords, hours in _RULES:
+        if any(re.search(rf"\b{re.escape(k)}", lowered) for k in keywords):
+            return name, hours
+    return None
+
+
 class HeuristicEstimator:
     """Keyword-based fallback: base hours per assignment kind plus a bit for long descriptions."""
 
     def estimate(self, title: str, description: str = "", course: str | None = None) -> Estimate:
-        text = f"{title} {description}".lower()
-        kind, base = _DEFAULT_KIND, _DEFAULT_HOURS
-        for name, keywords, hours in _RULES:
-            if any(re.search(rf"\b{re.escape(k)}", text) for k in keywords):
-                kind, base = name, hours
-                break
+        # The title names the kind of work; the description only decides when the title says nothing
+        # (otherwise "Lab 3: ... write tests" would count as exam prep).
+        kind, base = _match(title) or _match(description) or (_DEFAULT_KIND, _DEFAULT_HOURS)
         words = len(description.split())
         extra = min(words / _WORDS_PER_EXTRA_HOUR, _MAX_EXTRA_HOURS)
         hours = clamp_hours(base + extra)

@@ -128,3 +128,5 @@ def test_heuristic_rules():
     long = h.estimate("Essay", " ".join(["word"] * 300))
     assert long.hours == 7 and "300-word" in long.rationale
     assert h.estimate("Project", " ".join(["w"] * 5000)).hours == 14  # extra capped at 4 h
+    assert h.estimate("Lab 3", "Implement the API and write tests").hours == 4  # title wins over description
+    assert h.estimate("Week 5", "Prepare for the midterm exam").hours == 6  # description used when title is generic

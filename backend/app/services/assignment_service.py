@@ -33,9 +33,9 @@ class AssignmentService:
             description=data.description,
             deadline=data.deadline,
             user_hours=data.user_hours,
-            course=self._course(data.course_name),
+            course=self.course(data.course_name),
         )
-        self._apply_estimate(a, data.estimate)
+        self.apply_estimate(a, data.estimate)
         self.db.add(a)
         self.db.commit()
         return a
@@ -49,11 +49,11 @@ class AssignmentService:
         if "user_hours" in fields:
             a.user_hours = fields["user_hours"]  # None clears the correction
         if "course_name" in fields:
-            a.course = self._course(fields["course_name"])
+            a.course = self.course(fields["course_name"])
         if data.estimate is not None:
-            self._apply_estimate(a, data.estimate)
+            self.apply_estimate(a, data.estimate)
         elif a.estimate_source == "heuristic" and ({"title", "description"} & fields.keys()):
-            self._apply_estimate(a, None)  # keep the server estimate in sync with the text
+            self.apply_estimate(a, None)  # keep the server estimate in sync with the text
         self.db.commit()
         return a
 
@@ -61,18 +61,20 @@ class AssignmentService:
         self.db.delete(self.get(assignment_id))
         self.db.commit()
 
-    def _apply_estimate(self, a: Assignment, given: EstimateIn | None) -> None:
+    def apply_estimate(self, a: Assignment, given: EstimateIn | None) -> None:
         if given is not None:
             est = Estimate(hours=given.hours, rationale=given.rationale, source=given.source)
         else:
             est = self.estimator.estimate(a.title, a.description or "", a.course_name)
         a.ai_hours, a.ai_rationale, a.estimate_source = est.hours, est.rationale[:500], est.source
 
-    def _course(self, name: str | None) -> Course | None:
+    def course(self, name: str | None) -> Course | None:
+        """Get or create the user's course by name (flushed, so repeated lookups in one transaction see it)."""
         if not name:
             return None
         course = self.db.scalar(select(Course).where(Course.user_id == self.user.id, Course.name == name))
         if course is None:
             course = Course(user_id=self.user.id, name=name)
             self.db.add(course)
+            self.db.flush()
         return course

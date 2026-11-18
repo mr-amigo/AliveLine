@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import models  # noqa: F401  (registers tables on Base.metadata)
-from app.api import ai, assignments, auth, health, plan, settings, waitlist
+from app.api import ai, assignments, auth, health, imports, plan, settings, waitlist
 from app.core.db import Base, engine
 
 # Built frontend (frontend/dist) is copied here in the Docker image.
@@ -47,7 +47,7 @@ def create_app() -> FastAPI:
         redoc_url=None,
     )
     api = APIRouter(prefix="/api")
-    for module in (health, auth, settings, waitlist, assignments, plan, ai):  # ai: local dev; prod → AI Lambda
+    for module in (health, auth, settings, waitlist, assignments, plan, imports, ai):  # ai: local dev; prod → AI Lambda
         api.include_router(module.router)
     app.include_router(api)
     _mount_frontend(app)
