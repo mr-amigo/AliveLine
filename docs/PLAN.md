@@ -138,7 +138,7 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 
 ## 6. Import (domain/importers/)
 - `ics.py` using `icalendar`: for each `VEVENT` → `AssignmentDraft(title, description, deadline=DTEND or DTSTART, course=CATEGORIES or None, external_uid=UID)`.
-  Clean Moodle titles: strip suffixes `" is due"`, `" closes"`, `" should be completed"`.
+  Clean Moodle titles: strip suffixes `is due`, `closes`, `should be completed`, `due`, `має бути виконано`, `закривається`, `термін здачі`; skip `opens`/`відкривається` events (activity start, not a deadline). All-day events are due 23:59 in `APP_TZ`; zone-less times are read in `APP_TZ`. Max 500 events.
   Skip events whose deadline is > 30 days in the past.
 - Service upserts by `(user_id, external_uid)`: new → create (heuristic estimate); existing → update deadline/description only (keep user_hours, done, estimates).
 - Response: `{created, updated, skipped, created_ids}` (`created_ids` lets the frontend run AI estimates on new items).
@@ -246,8 +246,10 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: live `/api/ai/estimate` returns an AI estimate + rationale; on error → heuristic. ✅ (OpenAI)
 
 ### Phase 6 — .ics import
-- [ ] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py (returns `created_ids`)
-- [ ] tests/test_ics.py (parse, title cleanup, skip old, upsert keeps user fields)
+- [x] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py (returns `created_ids`)
+- [x] tests/test_ics.py (parse, title cleanup, skip "opens"/old, all-day → 23:59 Kyiv, floating time, upsert keeps user fields, per-user, errors 413/422/401)
+- [x] deployed; live smoke with a Moodle-style file: created 2 / skipped 1 → re-import updated 2; invalid file → 422
+- [ ] import a **real** UCU Moodle export (user) and adjust title suffixes if Moodle's Ukrainian strings differ
 - DoD: real Moodle export imports on live.
 
 ### Phase 7 — Product UI (docs/DESIGN.md)
@@ -276,3 +278,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Design direction: Notion-Calendar-style (own brand) → docs/DESIGN.md; §8 now routes/structure only; /plan returns a week range for WeekGrid; phase 7 rewritten.
 - 2026-11-18 — Phase 4 done: Course/Assignment models, WorkWindowPlanner, heuristic estimator (server default; client may pass `estimate`), CRUD + GET /plan?from&days; 33 tests green; deployed (aws-push/backend/migrate) and smoke-tested on live Postgres. Added tzdata. `window` is never null.
 - 2026-11-18 — Phase 5 done: AI Lambda live at /api/ai/estimate via OpenAI gpt-4.1-mini (Bedrock blocked: 0 quota / 403 in the shared account, support pending; code supports it). 46 tests green. Live: 401 without cookie, Ukrainian course project → 30 h with Ukrainian rationale (5.6 s cold), create with estimate → planned 3 h/day.
+- 2026-11-18 — Phase 6 done: .ics import (IcsSource adapter, ImportService upsert by UID, MoodleApiSource stub), 57 tests green, live smoke OK. Heuristic now matches title before description ("Lab … write tests" was exam prep). Pending: try a real UCU Moodle export.
