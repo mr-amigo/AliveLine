@@ -1,0 +1,316 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  AliveLine - FastAPI backend on AWS Lambda (container image) with a function URL (CloudFront is the
+  public entry), PostgreSQL on Aurora Serverless v2 that pauses when idle. No NAT gateway, no load balancer.
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: aliveline
+  ImageUri:
+    Type: String
+    Description: Backend image URI with tag, e.g. <account>.dkr.ecr.<region>.amazonaws.com/aliveline-backend:abc123.
+  Architecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, x86_64]
+    Description: Must match the platform the image was built for. arm64 (Graviton) is ~20% cheaper.
+  MemorySize:
+    Type: Number
+    Default: 1024
+    MinValue: 128
+    MaxValue: 10240
+    Description: Lambda memory in MB. CPU scales with it; bcrypt hashing needs ~1 GB to stay fast.
+  Timeout:
+    Type: Number
+    Default: 30
+    MinValue: 3
+    MaxValue: 900
+    Description: Seconds per request. Leaves room for Aurora to resume from 0 ACU (~15 s).
+  AppTz:
+    Type: String
+    Default: Europe/Kyiv
+  LogRetentionDays:
+    Type: Number
+    Default: 7
+  BudgetAlertEmail:
+    Type: String
+    Default: ""
+    Description: Optional email for the monthly $5 account budget alert.
+  BudgetLimitUsd:
+    Type: Number
+    Default: 5
+
+  DbEngineVersion:
+    Type: String
+    Default: "16.14"
+    Description: Aurora PostgreSQL version; scaling to 0 ACU needs 16.3+.
+  DbMinCapacity:
+    Type: Number
+    Default: 0
+    Description: Minimum ACUs. 0 lets the database pause when idle (you pay only for storage).
+  DbMaxCapacity:
+    Type: Number
+    Default: 1
+  DbSecondsUntilAutoPause:
+    Type: Number
+    Default: 300
+    MinValue: 300
+  DbName:
+    Type: String
+    Default: aliveline
+  DbUsername:
+    Type: String
+    Default: aliveline
+
+Conditions:
+  HasBudgetEmail: !Not [!Equals [!Ref BudgetAlertEmail, ""]]
+
+Resources:
+  # ---------------- Network: two private subnets (Aurora needs two AZs) ----------------
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.30.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-vpc" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      CidrBlock: !Select [0, !Cidr [!GetAtt Vpc.CidrBlock, 2, 8]]
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-1" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      CidrBlock: !Select [1, !Cidr [!GetAtt Vpc.CidrBlock, 2, 8]]
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-2" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-private-rt" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  PrivateSubnet1Routes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnet1, RouteTableId: !Ref PrivateRouteTable }
+
+  PrivateSubnet2Routes:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnet2, RouteTableId: !Ref PrivateRouteTable }
+
+  BackendSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Backend Lambda - outbound to the database only
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-backend" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: PostgreSQL - only from the backend Lambda
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 5432, ToPort: 5432, SourceSecurityGroupId: !Ref BackendSecurityGroup }
+      Tags:
+        - { Key: Name, Value: !Sub "${ProjectName}-db" }
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  # ---------------- Secrets (resolved at deploy time; the Lambda needs no route to Secrets Manager) ----------------
+  DbSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: !Sub Master credentials of the ${ProjectName} Aurora cluster
+      GenerateSecretString:
+        SecretStringTemplate: !Sub '{"username": "${DbUsername}"}'
+        GenerateStringKey: password
+        PasswordLength: 32
+        ExcludePunctuation: true # safe inside a database URL
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  AppSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: !Sub JWT signing key (SECRET_KEY) of ${ProjectName}
+      GenerateSecretString:
+        SecretStringTemplate: "{}"
+        GenerateStringKey: secret_key
+        PasswordLength: 64
+        ExcludePunctuation: true
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  # ---------------- Database: Aurora Serverless v2 (PostgreSQL) ----------------
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub ${ProjectName} database subnets
+      SubnetIds: [!Ref PrivateSubnet1, !Ref PrivateSubnet2]
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  DbCluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot # a final snapshot is kept when the stack is deleted
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBClusterIdentifier: !Sub ${ProjectName}-db
+      Engine: aurora-postgresql
+      EngineVersion: !Ref DbEngineVersion
+      DatabaseName: !Ref DbName
+      MasterUsername: !Ref DbUsername
+      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DbSecret}:SecretString:password}}"
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VpcSecurityGroupIds: [!Ref DbSecurityGroup]
+      StorageEncrypted: true
+      CopyTagsToSnapshot: true
+      BackupRetentionPeriod: 1
+      DeletionProtection: false
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref DbMinCapacity
+        MaxCapacity: !Ref DbMaxCapacity
+        SecondsUntilAutoPause: !Ref DbSecondsUntilAutoPause
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  DbInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub ${ProjectName}-db-1
+      DBClusterIdentifier: !Ref DbCluster
+      Engine: aurora-postgresql
+      DBInstanceClass: db.serverless
+      PubliclyAccessible: false
+      AutoMinorVersionUpgrade: true
+      EnablePerformanceInsights: false
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  # ---------------- Lambda ----------------
+  BackendLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${ProjectName}-backend
+      RetentionInDays: !Ref LogRetentionDays
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  BackendRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  BackendFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: DbInstance
+    Properties:
+      FunctionName: !Sub ${ProjectName}-backend
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ImageUri
+      Architectures: [!Ref Architecture]
+      MemorySize: !Ref MemorySize
+      Timeout: !Ref Timeout
+      Role: !GetAtt BackendRole.Arn
+      LoggingConfig:
+        LogGroup: !Ref BackendLogGroup
+      VpcConfig:
+        SubnetIds: [!Ref PrivateSubnet1, !Ref PrivateSubnet2]
+        SecurityGroupIds: [!Ref BackendSecurityGroup]
+      Environment:
+        Variables:
+          ENV: prod
+          COOKIE_SECURE: "true"
+          APP_TZ: !Ref AppTz
+          SECRET_KEY: !Sub "{{resolve:secretsmanager:${AppSecret}:SecretString:secret_key}}"
+          DATABASE_URL: !Sub
+            - "postgresql+psycopg://${DbUsername}:{{resolve:secretsmanager:${DbSecret}:SecretString:password}}@${Host}:${Port}/${DbName}"
+            - { Host: !GetAtt DbCluster.Endpoint.Address, Port: !GetAtt DbCluster.Endpoint.Port }
+          # Close connections after each request: Aurora pauses only when none are open.
+          DB_NULL_POOL: "true"
+      Tags:
+        - { Key: PROJECT_NAME, Value: !Ref ProjectName }
+
+  BackendFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref BackendFunction
+      AuthType: NONE
+
+  # A public function URL needs both permissions.
+  BackendFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackendFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  BackendFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BackendFunction
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+  # ---------------- Cost guard ----------------
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasBudgetEmail
+    Properties:
+      Budget:
+        BudgetName: !Sub ${ProjectName}-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: !Ref BudgetLimitUsd, Unit: USD }
+      NotificationsWithSubscribers:
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 80, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref BudgetAlertEmail }]
+        - Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref BudgetAlertEmail }]
+
+Outputs:
+  FunctionUrl:
+    Description: Direct Lambda URL (the site uses it through CloudFront at /api).
+    Value: !GetAtt BackendFunctionUrl.FunctionUrl
+  ApiDomain:
+    Description: Host of the function URL, used as the CloudFront API origin.
+    Value: !Select [2, !Split ["/", !GetAtt BackendFunctionUrl.FunctionUrl]]
+  FunctionName:
+    Value: !Ref BackendFunction
+  LogGroupName:
+    Value: !Ref BackendLogGroup
+  DbEndpoint:
+    Description: Aurora writer endpoint (reachable only from inside the VPC).
+    Value: !GetAtt DbCluster.Endpoint.Address
+  DbSecretArn:
+    Value: !Ref DbSecret

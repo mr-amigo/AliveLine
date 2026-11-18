@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     env: str = "dev"
     secret_key: str = DEV_SECRET
     database_url: str = "sqlite:///./aliveline.db"
+    # Lambda + Aurora: no pooled connections, so the paused-when-idle database can actually pause.
+    db_null_pool: bool = False
     cookie_name: str = "al_session"
     cookie_secure: bool = False
     jwt_expire_days: int = 7

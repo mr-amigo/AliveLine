@@ -181,17 +181,18 @@ Design tokens (keep consistent):
 - Brand: logo text "Alive" + pulse-line icon (inline SVG) + "Line".
 
 ## 9. Infra & deployment
-- `infra/Dockerfile` (context = repo root): stage 1 `node:22-slim` (Alpine breaks Rollup) → `npm ci && npm run build` in frontend; stage 2 `python:3.12-slim` → install backend reqs, copy `backend/app`, copy `frontend/dist` → `/app/static`; `CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}`.
-- `main.py`: if `static/` exists, mount `/assets` and return `index.html` for any non-`/api` GET (SPA fallback).
-- `infra/render.yaml` (Blueprint): web service, `runtime: docker`, `dockerfilePath: ./infra/Dockerfile`, `dockerContext: .`, `healthCheckPath: /api/health`, plan free, env: `ENV=prod`, `COOKIE_SECURE=true`, `SECRET_KEY` (generateValue), `DATABASE_URL` (sync:false), `ANTHROPIC_API_KEY` (sync:false).
-- `infra/docker-compose.yml`: app + postgres:16 for full local prod-like run.
-- DB: Neon free Postgres; URL form `postgresql+psycopg://…?sslmode=require` (config converts `postgres://` prefix automatically).
-- `.env.example` in backend/.
-- Deploy steps (README): 1) Neon → create DB, copy URL. 2) Render → New → Blueprint → this repo → set `DATABASE_URL`, `ANTHROPIC_API_KEY`. 3) Open `https://<service>.onrender.com`, sign up. Note: free tier sleeps after 15 min idle (first request ~50 s).
+AWS, CloudFormation + Makefile (pattern from the course's reference project), region `us-east-1`.
+- **Site + API on one origin**: CloudFront (`*.cloudfront.net`, HTTPS, flat-rate Free plan + WAF rate limit). Default behavior → private S3 bucket (SPA, OAC). `/api/*` → Lambda function URL (CachingDisabled, AllViewerExceptHostHeader so the cookie passes). SPA fallback maps only **403** → `/index.html`, so the API must never return 403.
+- **Backend**: `infra/Dockerfile.lambda` (`public.ecr.aws/lambda/python:3.12`, arm64), `app/lambda_handler.py` (Mangum, lifespan off; `{"action":"migrate"}` → `create_all`). Image in ECR (`infra/backend-ecr.yaml`), tagged with the commit SHA.
+- **DB**: Aurora Serverless v2 PostgreSQL 16, min 0 ACU (auto-pause 5 min), private subnets, no NAT. `DB_NULL_POOL=true` so it can pause. `DATABASE_URL` and `SECRET_KEY` are resolved from Secrets Manager at deploy (`infra/backend.yaml`).
+- **Cost guard**: `AWS::Budgets::Budget` of $5/month → `BUDGET_EMAIL`.
+- **Make**: `make aws-deploy` (ecr → push → backend → migrate → frontend → publish); `aws-push aws-backend` / `aws-publish` for updates; root `.env` (git-ignored) holds AWS keys.
+- **Phase 5 note**: the Lambda is in a VPC with no internet, so it can't reach Bedrock. Options: a separate estimator Lambda outside the VPC behind CloudFront `/api/ai/*` (verifies our JWT; the reference project does this), or a Bedrock VPC interface endpoint (~$7/month). Decide in phase 5.
+- **Local**: `infra/Dockerfile` (node:22-slim build → python:3.12-slim, FastAPI serves `static/`) and `infra/docker-compose.yml` (app + postgres:16) stay for local runs.
 - CI (optional, phase 8): GitHub Action running `pytest` + `npm run build`.
 
 ## 10. README outline (phase 3, refined in 8)
-What it is (2 lines + screenshot) · Why (problem vs Moodle/Calendar) · Features · Architecture (diagram link to this file) · Repo layout · Run locally · Run with Docker · Deploy (Render + Neon) · Env vars table · Team.
+What it is (2 lines + screenshot) · Why (problem vs Moodle/Calendar) · Features · Architecture (diagram link to this file) · Repo layout · Run locally · Run with Docker · Deploy (AWS) · Env vars table · Team.
 
 ---
 
@@ -213,10 +214,11 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: `npm run build` ok; locally sign up → land on /app → refresh keeps session → sign out.
 
 ### Phase 3 — Infra + deploy + README  (secures A & B)
-- [x] infra/Dockerfile, infra/render.yaml, infra/docker-compose.yml
+- [x] infra/Dockerfile, infra/docker-compose.yml (local)
 - [x] `docker build` + run locally → sign up works on :8000
 - [x] README.md per §10 (first version)
-- [ ] User creates Neon + Render, deploys; verify HTTPS sign up/sign in on live URL; put URL in README
+- [x] AWS infra: infra/{backend-ecr,backend,frontend}.yaml, Dockerfile.lambda, lambda_handler.py, Makefile (replaces Render/Neon)
+- [ ] `make aws-deploy` (user's AWS keys in root .env); verify HTTPS sign up/sign in on CloudFront URL; put URL in README
 - DoD: live HTTPS URL, sign up/in works. Commit + push.
 
 ### Phase 4 — Assignments + planner (core domain)
@@ -251,3 +253,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 1 done: FastAPI core, cookie-JWT auth, settings, waitlist, LoginEvent; 8 tests green. Added `schemas/common.UtcDatetime` (SQLite drops tz) — use it for all datetime outputs.
 - 2026-11-18 — Phase 2 done: Vite/React/TS/Tailwind v4 shell; AuthContext, RequireAuth, Landing (+waitlist, preview card), SignIn/SignUp (shared AuthForm), Settings, Dashboard placeholder; ui.tsx primitives (Button, Field, Input, Alert, Card, Spinner). Build ok; SPA fallback verified via backend/static.
 - 2026-11-18 — Phase 3 (code) done: infra/{Dockerfile,render.yaml,docker-compose.yml}, .dockerignore, README. Image + compose (Postgres) smoke-tested: health, signup, me, SPA. Blueprint Path must be set to `infra/render.yaml`. Remaining: user deploys Neon + Render, then tick last box + add URL.
+- 2026-11-18 — Phase 3: switched deploy to AWS (reference-project pattern): CloudFront(S3 + /api→Lambda URL), Lambda container (Mangum), Aurora Serverless v2, Secrets Manager, $5 budget; Makefile aws-*. Render/Neon dropped. Lambda image tested locally via RIE (migrate/signup/me). Remaining: real deploy.

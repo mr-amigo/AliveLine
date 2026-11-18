@@ -226,3 +226,5 @@ __marimo__/
 node_modules/
 *.db
 backend/static/
+example/
+.DS_Store

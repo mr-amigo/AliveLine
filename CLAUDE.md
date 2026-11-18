@@ -18,8 +18,8 @@ Full design (domain model, API, algorithm, phases): **docs/PLAN.md**. Product on
 - backend/: Python 3.12, FastAPI, SQLAlchemy 2 (sync), Pydantic v2 + pydantic-settings, PyJWT, bcrypt,
   icalendar, anthropic SDK. pip + requirements.txt. Tests: pytest + FastAPI TestClient on SQLite.
 - frontend/: React 18 + TypeScript + Vite + Tailwind v4 (`@tailwindcss/vite`) + react-router-dom. No other UI/state libs.
-- infra/: one multi-stage Dockerfile (builds frontend, FastAPI serves it) + render.yaml + docker-compose.yml.
-- Prod: Render web service (HTTPS) + Neon Postgres. Local: SQLite by default.
+- infra/: CloudFormation (backend-ecr, backend, frontend) + Dockerfile.lambda; Makefile `make aws-*`. Also all-in-one Dockerfile + docker-compose.yml for local.
+- Prod: AWS us-east-1 — CloudFront (S3 SPA + `/api/*` → Lambda function URL, FastAPI via Mangum) + Aurora Serverless v2 Postgres. Local: SQLite by default.
 
 ## Layout
 ```
@@ -35,7 +35,8 @@ backend/app/
 backend/tests/
 frontend/src/
   api/ (client.ts, types.ts)  auth/ (AuthContext, RequireAuth)  pages/  components/
-infra/  Dockerfile  render.yaml  docker-compose.yml
+infra/  backend-ecr.yaml backend.yaml frontend.yaml Dockerfile.lambda Dockerfile docker-compose.yml
+Makefile  aws-* deploy targets
 ```
 
 ## Conventions
@@ -43,7 +44,7 @@ infra/  Dockerfile  render.yaml  docker-compose.yml
 - All API under `/api`. JSON snake_case. Datetimes ISO-8601 UTC; planning by calendar day in `APP_TZ` (Europe/Kyiv).
 - Auth: JWT in httpOnly cookie `al_session` (SameSite=Lax, Secure in prod). Same origin → no CORS in prod; Vite proxies `/api` in dev.
 - Work windows/statuses are **computed on read**, never stored.
-- Errors: `HTTPException` with short `detail`; frontend shows `detail`.
+- Errors: `HTTPException` with short `detail`; frontend shows `detail`. Never use 403 (CloudFront maps 403 → SPA index.html).
 - Type hints everywhere; small functions; docstring only where intent isn't obvious.
 - Secrets only via env (`SECRET_KEY`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `COOKIE_SECURE`). Never commit `.env`.
 - When implementing the Claude estimator, load the `claude-api` skill first. Model: `claude-haiku-5-5`.

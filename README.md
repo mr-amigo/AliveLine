@@ -3,7 +3,7 @@
 **An AI planner for UCU students that tells you *when to start*, not just when it's due.**
 AliveLine collects your deadlines, estimates how many hours each assignment needs, and gives every task a work window: a start date and a personal target finish date.
 
-> Live: _coming soon (Render)_ · Screenshot: _added in the final phase_
+> Live: _coming soon (AWS CloudFront)_ · Screenshot: _added in the final phase_
 
 ## Why
 Moodle, Google Calendar and Todoist remind you about the **submission date**. That's the wrong signal: a deadline says nothing about how long the work takes, so work slides to the last night. AliveLine counts back from the real deadlines across *all* your assignments and your daily capacity, and shows the day you need to start.
@@ -17,12 +17,15 @@ Moodle, Google Calendar and Todoist remind you about the **submission date**. Th
 - Early-access waitlist on the landing page
 
 ## Architecture
-Single service: FastAPI serves both the JSON API (`/api/*`) and the built React SPA from the same origin, so there is no CORS in production.
+One origin for the site and the API, so the httpOnly session cookie works without CORS.
 
 ```
-React (Vite, TS, Tailwind)  ──/api──▶  FastAPI routers ─▶ services ─▶ domain (pure: planner, estimators, importers)
-                                                              └──▶ SQLAlchemy models ─▶ SQLite (dev) / Postgres (prod)
+Browser ──HTTPS──▶ CloudFront ──/*──────▶ S3 (React SPA: Vite, TS, Tailwind)
+                             └──/api/*──▶ Lambda function URL: FastAPI (Mangum) ─▶ Aurora Serverless v2 PostgreSQL (private VPC)
+
+FastAPI: routers ─▶ services ─▶ domain (pure: planner, estimators, importers) + SQLAlchemy models
 ```
+Locally (and in `infra/Dockerfile`), FastAPI serves the built SPA itself, with SQLite or Postgres.
 
 Full OOAD design (use cases, domain model, planning algorithm, API, phases): [docs/PLAN.md](docs/PLAN.md).
 Product one-pager: [docs/ONE_PAGER.md](docs/ONE_PAGER.md).
@@ -31,7 +34,8 @@ Product one-pager: [docs/ONE_PAGER.md](docs/ONE_PAGER.md).
 ```
 backend/    FastAPI app (app/core, models, schemas, domain, services, api) + pytest tests
 frontend/   React 18 + TypeScript + Vite + Tailwind v4
-infra/      Dockerfile (multi-stage), render.yaml (Render Blueprint), docker-compose.yml
+infra/      CloudFormation (backend-ecr, backend, frontend), Dockerfile.lambda, Dockerfile (all-in-one), docker-compose.yml
+Makefile    make aws-* deployment targets (`make` lists them)
 docs/       PLAN.md (design), ONE_PAGER.md
 ```
 
@@ -65,23 +69,29 @@ docker run -p 8000:8000 -e SECRET_KEY=dev aliveline        # http://localhost:80
 docker compose -f infra/docker-compose.yml up --build
 ```
 
-## Deploy (Render + Neon)
-1. **Neon**: create a free project (region: Frankfurt, `eu-central-1`) and copy the connection string (`postgresql://…?sslmode=require`). `postgres://` / `postgresql://` URLs are converted to the psycopg driver automatically.
-2. **Render**: New → Blueprint → pick this repo → set **Blueprint Path** to `infra/render.yaml`. Fill in `DATABASE_URL` (from Neon) and optionally `ANTHROPIC_API_KEY`. `SECRET_KEY` is generated for you.
-3. Open `https://<service>.onrender.com` and sign up. Tables are created on first start.
+## Deploy (AWS)
+Everything is CloudFormation in `infra/`, driven by the `Makefile`; region `us-east-1`.
+Needs: AWS CLI v2, Docker with buildx, Node 22.
 
-Note: the free Render tier sleeps after 15 minutes idle, so the first request after that takes around 50 seconds.
+1. `cp .env.example .env` and fill in `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BUDGET_EMAIL` (a $5/month budget alert).
+2. `make aws-deploy`. It creates the ECR repo, pushes the Lambda image (tagged with the commit), deploys VPC + Aurora + Lambda (the first run takes about 10 minutes), creates tables, deploys S3 + CloudFront, then uploads the SPA.
+3. `make aws-url` prints the site URL (`https://<id>.cloudfront.net`). Open it and sign up.
+
+After code changes: `make aws-push aws-backend` (backend) or `make aws-publish` (frontend). Useful: `make aws-health`, `make aws-logs`, `make aws-destroy`.
+
+Cost: close to $0 when idle. Lambda and CloudFront (flat-rate Free plan) are free at this scale; Aurora pauses after 5 idle minutes, so you pay only for storage plus 2 secrets (about $1/month). The first request after a pause takes about 15 s while Aurora resumes. If the account can't use the CloudFront Free plan (e.g. AWS Free Tier accounts), deploy with `make aws-deploy CLOUDFRONT_PLAN=PAY_AS_YOU_GO`.
 
 ## Environment variables
 | Variable | Default | Description |
 |---|---|---|
 | `ENV` | `dev` | `prod` refuses to start with the default `SECRET_KEY` |
-| `SECRET_KEY` | dev placeholder | JWT signing key. **Required in prod** |
-| `DATABASE_URL` | `sqlite:///./aliveline.db` | SQLAlchemy URL; Neon/Postgres URLs accepted as-is |
-| `COOKIE_SECURE` | `false` | Set `true` behind HTTPS (Render) |
+| `SECRET_KEY` | dev placeholder | JWT signing key. **Required in prod**; on AWS, generated in Secrets Manager |
+| `DATABASE_URL` | `sqlite:///./aliveline.db` | SQLAlchemy URL; `postgres://` URLs accepted as-is. On AWS, built from the Aurora secret |
+| `DB_NULL_POOL` | `false` | `true` on Lambda: no pooled connections, so Aurora can pause |
+| `COOKIE_SECURE` | `false` | `true` behind HTTPS (set on AWS) |
 | `APP_TZ` | `Europe/Kyiv` | Time zone for day-based planning |
 | `ANTHROPIC_API_KEY` | empty | Enables Claude estimates; heuristic fallback without it |
-| `PORT` | `8000` | Port the container listens on (set by Render) |
+| `PORT` | `8000` | Port of the all-in-one container |
 
 ## Team
 Artem Serhiichuk · Ostap Sukhomlyn · Andrii Antoniuk. OOAD course, Ukrainian Catholic University.

@@ -1,0 +1,10 @@
+# Backend image for AWS Lambda (infra/Dockerfile is the all-in-one image for Docker/compose).
+# Build context = repo root:  make aws-push
+FROM public.ecr.aws/lambda/python:3.12
+
+COPY backend/requirements.txt ${LAMBDA_TASK_ROOT}/
+RUN pip install --no-cache-dir --target "${LAMBDA_TASK_ROOT}" -r ${LAMBDA_TASK_ROOT}/requirements.txt
+
+COPY backend/app ${LAMBDA_TASK_ROOT}/app
+
+CMD ["app.lambda_handler.handler"]
