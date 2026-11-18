@@ -249,7 +249,7 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py (returns `created_ids`)
 - [x] tests/test_ics.py (parse, title cleanup, skip "opens"/old, all-day → 23:59 Kyiv, floating time, upsert keeps user fields, per-user, errors 413/422/401)
 - [x] deployed; live smoke with a Moodle-style file: created 2 / skipped 1 → re-import updated 2; invalid file → 422
-- [ ] import a **real** UCU Moodle export (user) and adjust title suffixes if Moodle's Ukrainian strings differ
+- [x] real UCU Moodle export (51 events): added patterns `Строк … спливає`, `закрито`, `слід заповнити`, `submission is due`, HTML entities, term code in course names; skip `доступно` + attendance; **new past-due events skipped**. Live: created 19 / skipped 25 in 1 s
 - DoD: real Moodle export imports on live.
 
 ### Phase 7 — Product UI (docs/DESIGN.md)
@@ -258,6 +258,7 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [ ] WeekGrid (deadline row, height ∝ hours, capacity line, today column) + ListView (status sections); usePlan(week)
 - [ ] AssignmentDrawer: create/edit, EstimatePanel (calls /ai/estimate, rationale, HoursStepper), mark done, delete
 - [ ] Import page (dropzone, steps, AI pass over `created_ids`), Settings + Auth restyle, Landing with WeekGrid preview
+- [ ] overload banner when any open item has `unscheduled_hours` (sum them: "X h don't fit — raise daily hours in Settings or correct estimates")
 - [ ] keyboard shortcuts (DESIGN §7), responsive (§5: list + 3-day + bottom sheet on mobile), empty/loading/"waking up"/error states
 - [ ] `make aws-publish`
 - DoD: on live site: sign up → import .ics → week grid shows blocks/deadlines → correct hours in drawer → statuses update; works at 375px.
@@ -279,3 +280,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 4 done: Course/Assignment models, WorkWindowPlanner, heuristic estimator (server default; client may pass `estimate`), CRUD + GET /plan?from&days; 33 tests green; deployed (aws-push/backend/migrate) and smoke-tested on live Postgres. Added tzdata. `window` is never null.
 - 2026-11-18 — Phase 5 done: AI Lambda live at /api/ai/estimate via OpenAI gpt-4.1-mini (Bedrock blocked: 0 quota / 403 in the shared account, support pending; code supports it). 46 tests green. Live: 401 without cookie, Ukrainian course project → 30 h with Ukrainian rationale (5.6 s cold), create with estimate → planned 3 h/day.
 - 2026-11-18 — Phase 6 done: .ics import (IcsSource adapter, ImportService upsert by UID, MoodleApiSource stub), 57 tests green, live smoke OK. Heuristic now matches title before description ("Lab … write tests" was exam prep). Pending: try a real UCU Moodle export.
+- 2026-11-18 — Phase 6 closed with the real export. It also exposed a planner flaw under overload (today went to far-off homework) → planner now EDF order + ALAP placement (§4); 59 tests green; deployed. Real calendar left in the test account for phase 7 UI work (19 items, 14 critical at 3 h/day).
