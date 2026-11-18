@@ -5,6 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, utcnow
 from app.models.course import Course
+from app.models.step import Step
 
 DEFAULT_HOURS = 3.0
 
@@ -30,13 +31,18 @@ class Assignment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     course: Mapped[Course | None] = relationship(lazy="joined")
+    steps: Mapped[list[Step]] = relationship(
+        order_by=Step.position, cascade="all, delete-orphan", lazy="selectin", passive_deletes=True
+    )
 
     @property
     def course_name(self) -> str | None:
         return self.course.name if self.course else None
 
     def effective_hours(self) -> float:
-        """The student's correction wins over the estimate."""
+        """Hours still to plan: open steps if split, else the student's correction, else the estimate."""
+        if self.steps:
+            return sum(s.hours for s in self.steps if not s.done)
         if self.user_hours is not None:
             return self.user_hours
         return self.ai_hours if self.ai_hours is not None else DEFAULT_HOURS

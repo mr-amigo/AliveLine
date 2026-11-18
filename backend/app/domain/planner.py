@@ -17,11 +17,19 @@ class Status(StrEnum):
 
 
 @dataclass(frozen=True)
+class PlanStep:
+    id: int
+    hours: float
+    done: bool = False
+
+
+@dataclass(frozen=True)
 class PlanItem:
     id: int
     deadline: date  # calendar day in the user's time zone
-    hours: float
+    hours: float  # ignored when the item has steps (their open hours are planned instead)
     done: bool = False
+    steps: tuple[PlanStep, ...] = ()  # in order: step N+1 is never planned before step N
 
 
 @dataclass(frozen=True)
@@ -52,9 +60,14 @@ class WorkWindow:
 class Plan:
     windows: dict[int, WorkWindow]
     daily: dict[date, list[tuple[int, float]]] = field(default_factory=dict)
+    # (day, item id) → [(step id, hours)] in step order, for items that have steps
+    step_pieces: dict[tuple[date, int], list[tuple[int, float]]] = field(default_factory=dict)
 
     def on(self, day: date) -> list[tuple[int, float]]:
         return self.daily.get(day, [])
+
+    def steps_on(self, day: date, item_id: int) -> list[tuple[int, float]]:
+        return self.step_pieces.get((day, item_id), [])
 
 
 def round_up_half(hours: float) -> float:
@@ -72,11 +85,14 @@ class WorkWindowPlanner:
     mix tasks; sweep 2 drops the cap; sweep 3 drops the minimum piece size. Sweeps 1–2 never leave a piece
     under `min_session_hours` (a 3 h task becomes 1.5 + 1.5, a 2.5 h task stays whole); later sweeps run only
     when the deadline needs them.
+    Steps: the last step is placed first, each step as late as possible but no later than the first day of the
+    step after it, so order holds; steps of one item share its per-day session cap.
     """
 
     def plan(self, items: list[PlanItem], settings: PlanSettings, today: date) -> Plan:
         windows: dict[int, WorkWindow] = {}
         daily: dict[date, list[tuple[int, float]]] = {}
+        pieces: dict[tuple[date, int], list[tuple[int, float]]] = {}
 
         open_items: list[tuple[PlanItem, date]] = []
         for item in items:
@@ -85,7 +101,7 @@ class WorkWindowPlanner:
             else:
                 open_items.append((item, self._target_finish(item.deadline, settings.buffer_days, today)))
         if not open_items:
-            return Plan(windows, daily)
+            return Plan(windows, daily, pieces)
 
         last_day = max(target for _, target in open_items)
         free = {
@@ -98,15 +114,43 @@ class WorkWindowPlanner:
         rank = {item.id: i for i, (item, _) in enumerate(order)}
 
         for item, target in order:
-            hours = round_up_half(item.hours)
-            taken = self._place(free, today, target, hours, cap, min_piece) if target >= today else {}
-            shortfall = round(hours - sum(taken.values()), 2)
+            if item.steps:
+                taken, shortfall = self._place_steps(free, today, target, item, cap, min_piece, pieces)
+            else:
+                hours = round_up_half(item.hours)
+                taken = self._place(free, today, target, hours, cap, min_piece) if target >= today else {}
+                shortfall = round(hours - sum(taken.values()), 2)
             windows[item.id] = self._window(item, target, taken, shortfall, today)
             self._record(daily, item.id, taken)
 
         for allocations in daily.values():
             allocations.sort(key=lambda a: rank[a[0]])  # most urgent first within a day
-        return Plan(windows, daily)
+        return Plan(windows, daily, pieces)
+
+    def _place_steps(
+        self,
+        free: dict[date, float],
+        today: date,
+        target: date,
+        item: PlanItem,
+        cap: float,
+        min_piece: float,
+        pieces: dict[tuple[date, int], list[tuple[int, float]]],
+    ) -> tuple[dict[date, float], float]:
+        """Places open steps last-first; returns the item's hours per day and its total shortfall."""
+        taken: dict[date, float] = {}
+        shortfall = 0.0
+        latest = target
+        for step in reversed([s for s in item.steps if not s.done]):
+            hours = round_up_half(step.hours)
+            got = self._place(free, today, latest, hours, cap, min_piece, prior=taken) if latest >= today else {}
+            shortfall += hours - sum(got.values())
+            for day, h in got.items():
+                taken[day] = taken.get(day, 0.0) + h
+                pieces.setdefault((day, item.id), []).insert(0, (step.id, h))
+            if got:
+                latest = min(got)
+        return taken, round(shortfall, 2)
 
     @staticmethod
     def _piece(free_day: float, remaining: float, limit: float, min_piece: float) -> float:
@@ -123,20 +167,31 @@ class WorkWindowPlanner:
         return take if take >= min(min_piece, remaining) else 0.0
 
     def _place(
-        self, free: dict[date, float], today: date, target: date, hours: float, cap: float, min_piece: float
+        self,
+        free: dict[date, float],
+        today: date,
+        target: date,
+        hours: float,
+        cap: float,
+        min_piece: float,
+        prior: dict[date, float] | None = None,
     ) -> dict[date, float]:
-        """Takes up to `hours` latest-first from [today, target] in up to three sweeps (see class docstring)."""
+        """Takes up to `hours` latest-first from [today, target] in up to three sweeps (see class docstring).
+
+        `prior`: hours the same item already has per day (its later steps); they count toward the session cap.
+        """
+        prior = prior or {}
         taken: dict[date, float] = {}
         remaining = hours
         for limit, piece in ((cap, min_piece), (math.inf, min_piece), (math.inf, 0.0)):
             day = target
             while remaining > 0 and day >= today:
                 free_day = free.get(day, 0.0)
+                room = limit - prior.get(day, 0.0) - taken.get(day, 0.0)
                 if day in taken or piece == 0:
-                    # growing an existing piece never fragments
-                    take = min(free_day, remaining, limit - taken.get(day, 0.0))
+                    take = min(free_day, remaining, room)  # growing an existing piece never fragments
                 else:
-                    take = self._piece(free_day, remaining, limit, piece)
+                    take = self._piece(free_day, remaining, room, piece)
                 if take > 0:
                     free[day] -= take
                     taken[day] = taken.get(day, 0.0) + take

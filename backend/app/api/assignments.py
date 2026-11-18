@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import current_user, get_db, get_estimator
 from app.domain.estimation import Estimator
 from app.models import User
-from app.schemas.assignment import AssignmentCreate, AssignmentOut, AssignmentUpdate
+from app.schemas.assignment import AssignmentCreate, AssignmentOut, AssignmentUpdate, StepsUpdate
 from app.services.assignment_service import AssignmentNotFoundError, AssignmentService
 from app.services.plan_service import assignment_out
 
@@ -33,6 +33,15 @@ def update_assignment(
 ) -> AssignmentOut:
     try:
         a = svc.update(assignment_id, data)
+    except AssignmentNotFoundError:
+        raise _not_found()
+    return assignment_out(svc.db, svc.user, a)
+
+
+@router.put("/{assignment_id}/steps", response_model=AssignmentOut)
+def put_steps(assignment_id: int, data: StepsUpdate, svc: AssignmentService = Depends(_service)) -> AssignmentOut:
+    try:
+        a = svc.set_steps(assignment_id, data.steps)
     except AssignmentNotFoundError:
         raise _not_found()
     return assignment_out(svc.db, svc.user, a)

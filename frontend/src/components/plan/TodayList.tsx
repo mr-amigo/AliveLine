@@ -14,15 +14,18 @@ export default function TodayList({ items, onSelect }: { items: DayItem[]; onSel
       ) : (
         <ul className="space-y-px">
           {items.map((it) => (
-            <li key={it.assignment_id}>
+            <li key={`${it.assignment_id}-${it.step_id ?? ''}`}>
               <button
                 type="button"
                 onClick={() => onSelect(it.assignment_id)}
-                title={`${it.title} · ${STATUS[it.status].label}`}
+                title={`${it.title}${it.step_title ? ` · ${it.step_title}` : ''} · ${STATUS[it.status].label}`}
                 className={`${rowClass} hover:bg-bg-hover`}
               >
                 <StatusDot status={it.status} />
-                <span className="min-w-0 flex-1 truncate">{it.title}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {it.title}
+                  {it.step_title && <span className="font-normal text-text-3"> · {it.step_title}</span>}
+                </span>
                 <span className="tnum shrink-0 text-meta font-normal text-text-3">{hoursLabel(it.hours)}</span>
               </button>
             </li>

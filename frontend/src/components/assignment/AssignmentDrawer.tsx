@@ -5,6 +5,8 @@ import { addDays, hoursLabel, kyivDate, kyivTime, kyivToUtcIso, mediumDay, relat
 import { STATUS } from '../../lib/status'
 import { Alert, Button, Icon, IconButton, Tag, useToast, type IconName } from '../ui'
 import EstimatePanel, { type EstimateOrigin } from './EstimatePanel'
+import StepsPanel from './StepsPanel'
+import { useAuth } from '../../auth/AuthContext'
 
 interface Props {
   assignment?: Assignment
@@ -21,6 +23,7 @@ const errText = (err: unknown) => (err instanceof ApiError ? err.message : 'Some
 /** Notion side peek (bottom sheet on mobile) to create or edit one assignment (DESIGN.md §5). */
 export default function AssignmentDrawer({ assignment: a, courses, today, onClose, onOpen, onChanged }: Props) {
   const toast = useToast()
+  const { user } = useAuth()
   const panel = useRef<HTMLElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
 
@@ -269,6 +272,17 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
             />
             {a && dirty && <p className="text-meta text-text-3">Save to update the plan.</p>}
           </div>
+
+          {a && (
+            <StepsPanel
+              a={a}
+              title={title}
+              description={description}
+              course={course}
+              autoSuggest={user?.suggest_steps ?? true}
+              onChanged={onChanged}
+            />
+          )}
 
           <div className="mt-6 border-t border-line pt-4">
             <textarea

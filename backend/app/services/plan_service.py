@@ -7,9 +7,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.domain.planner import Plan, PlanItem, PlanSettings, WorkWindow, WorkWindowPlanner
+from app.domain.planner import Plan, PlanItem, PlanSettings, PlanStep, WorkWindow, WorkWindowPlanner
 from app.models import Assignment, User
-from app.schemas.assignment import AssignmentOut, DayItem, DayOut, PlanOut, WindowOut
+from app.schemas.assignment import AssignmentOut, DayItem, DayOut, PlanOut, StepOut, WindowOut
 
 MAX_RANGE_DAYS = 31
 
@@ -50,7 +50,16 @@ def plan_settings(user: User) -> PlanSettings:
 
 
 def compute_plan(user: User, assignments: list[Assignment], today: date) -> Plan:
-    items = [PlanItem(a.id, local_date(a.deadline), a.effective_hours(), a.done) for a in assignments]
+    items = [
+        PlanItem(
+            a.id,
+            local_date(a.deadline),
+            a.effective_hours(),
+            a.done,
+            tuple(PlanStep(s.id, s.hours, s.done) for s in a.steps),
+        )
+        for a in assignments
+    ]
     return WorkWindowPlanner().plan(items, plan_settings(user), today)
 
 
@@ -68,6 +77,7 @@ def to_out(a: Assignment, window: WorkWindow) -> AssignmentOut:
         user_hours=a.user_hours,
         effective_hours=a.effective_hours(),
         done=a.done,
+        steps=[StepOut.model_validate(s) for s in a.steps],
         window=WindowOut(**window.__dict__),
     )
 
@@ -88,18 +98,26 @@ def build_plan(
     plan = compute_plan(user, assignments, today)
     settings = plan_settings(user)
     by_id = {a.id: a for a in assignments}
+    step_titles = {s.id: s.title for a in assignments for s in a.steps}
+
+    def item(aid: int, hours: float, step_id: int | None = None) -> DayItem:
+        a = by_id[aid]
+        return DayItem(
+            assignment_id=aid,
+            title=a.title,
+            course_name=a.course_name,
+            hours=hours,
+            status=plan.windows[aid].status,
+            step_id=step_id,
+            step_title=step_titles.get(step_id) if step_id else None,
+        )
 
     def items_on(day: date) -> list[DayItem]:
-        return [
-            DayItem(
-                assignment_id=aid,
-                title=by_id[aid].title,
-                course_name=by_id[aid].course_name,
-                hours=hours,
-                status=plan.windows[aid].status,
-            )
-            for aid, hours in plan.on(day)
-        ]
+        out: list[DayItem] = []
+        for aid, hours in plan.on(day):
+            steps = plan.steps_on(day, aid)
+            out.extend([item(aid, h, sid) for sid, h in steps] if steps else [item(aid, hours)])
+        return out
 
     return PlanOut(
         today=today,

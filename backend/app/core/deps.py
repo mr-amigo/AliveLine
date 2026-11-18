@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.security import decode_access_token
-from app.domain.estimation import Estimator, HeuristicEstimator, OpenAIEstimator
+from app.domain.estimation import (
+    Estimator,
+    HeuristicEstimator,
+    NoStepSplitter,
+    OpenAIEstimator,
+    OpenAIStepSplitter,
+    StepSplitter,
+)
 from app.models import User
 
 
@@ -36,16 +43,26 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
 
 @lru_cache
-def _configured_estimator() -> Estimator:
+def _openai_client():  # type: ignore[no-untyped-def]
     s = get_settings()
-    if s.openai_api_key:
-        from openai import OpenAI
+    if not s.openai_api_key:
+        return None
+    from openai import OpenAI
 
-        client = OpenAI(api_key=s.openai_api_key, base_url=s.openai_base_url, timeout=s.llm_timeout_seconds, max_retries=1)
-        return OpenAIEstimator(client, s.openai_model)
-    return HeuristicEstimator()
+    return OpenAI(api_key=s.openai_api_key, base_url=s.openai_base_url, timeout=s.llm_timeout_seconds, max_retries=1)
+
+
+def _configured_estimator() -> Estimator:
+    client = _openai_client()
+    return OpenAIEstimator(client, get_settings().openai_model) if client else HeuristicEstimator()
 
 
 def get_estimator() -> Estimator:
     """Estimator strategy chosen by config (docs/PLAN.md §5). Overridable in tests."""
     return _configured_estimator()
+
+
+def get_step_splitter() -> StepSplitter:
+    """AI step splitter, or one that never splits when no LLM is configured. Overridable in tests."""
+    client = _openai_client()
+    return OpenAIStepSplitter(client, get_settings().openai_model) if client else NoStepSplitter()

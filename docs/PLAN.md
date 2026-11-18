@@ -126,7 +126,7 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 - **Shortest session** (`min_session_hours`, default 1.5, 0.5–4): pieces never go below it — a 3 h task becomes 1.5 + 1.5, a 2.5 h task stays whole (cap exceeded a little), a day that would leave a crumb is skipped. Only a final sweep, when the deadline needs it, may place smaller pieces.
 - **Interleaving** (setting, default on): a day holds several tasks in short sessions (e.g. 2 h maths + 1 h physics) instead of one long block; ordering within a day by urgency.
 - **Overload**: earliest target first, so urgent items keep the days near their targets (incl. today) and stay whole when they can; an item that can't fit takes what's left in its window and gets `at_risk=True` + `shortfall_hours` (status `critical`). The UI lists at-risk items once ("Won't make it"), never per-card "unscheduled". (Skipping unfinishable items to finish more others was tried on paper: it hands today to far-off homework while today's exam starves — the phase-6 flaw.)
-- Steps (phase 10) are planned like tasks with a precedence constraint.
+- **Steps** (phase 10): open steps replace the item's hours. Last step placed first, each ALAP but no later than the first day of the next step (same day allowed, earlier step listed first); steps of one item share its per-day session cap, and a day already used by a later step counts toward the cap but never lets a crumb (< min session) in. `Plan.step_pieces[(day, item)]` → `DayItem.step_id/step_title`.
 
 ## 5. Estimation (domain/estimation/)
 - `base.py`: `Estimate` dataclass (hours, rationale, source), `Estimator` Protocol.
@@ -164,6 +164,8 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 | PATCH | /assignments/{id} | ✓ | partial (incl. `user_hours`, `done`, `estimate`) → `AssignmentOut` |
 | DELETE | /assignments/{id} | ✓ | → 204 |
 | POST | /ai/estimate | ✓ (JWT only) | `{title, description?, course_name?}` → `{hours, rationale, source}` (AI Lambda) |
+| POST | /ai/steps | ✓ (JWT only) | `{title, description?, course_name?, hours}` → `{steps:[{title, hours}]}`; empty = don't split (AI Lambda; < 3 h or no LLM → empty) |
+| PUT | /assignments/{id}/steps | ✓ | `{steps:[{title, hours, done}]}` (full ordered list, ≤ 10; `[]` removes the split) → `AssignmentOut` |
 | POST | /import/ics | ✓ | multipart `file` (≤ 1 MB) → `{created, updated, skipped, created_ids}` |
 
 `AssignmentOut = {id, title, description, course_name, deadline, source, ai_hours, ai_rationale, estimate_source, user_hours, effective_hours, done, window:{start_date, target_finish, status, unscheduled_hours}}` (always present; done → status `done`, dates = deadline).
@@ -277,10 +279,10 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] frontend: remove "unscheduled" labels from cards/cells; one compact "Won't make it" callout listing at-risk items (open → drawer: raise hours / lower estimate / mark done)
 
 ### Phase 10 — AI steps (subtasks)
-- [ ] model `Step(id, assignment_id, title, hours, done, order)`; `POST /api/ai/steps` (AI Lambda) — AI splits **only when logical** (distinct parts, e.g. research → code → report; typically ≥ 4 h), otherwise returns no steps; 2–4 steps max, same language; no heuristic splitting (fallback = no steps)
-- [ ] AI suggests steps automatically only for big tasks after estimate; user can accept, edit, or dismiss; manual "Split" always available; setting "Suggest steps" on/off
-- [ ] planner plans steps in order (step N+1 never before step N) using phase-9 sessions; assignment hours = sum of open steps
-- [ ] drawer: Steps section (AI suggest, edit title/hours, reorder, check off); calendar blocks show step title
+- [x] model `Step(id, assignment_id, title, hours, done, order)`; `POST /api/ai/steps` (AI Lambda) — AI splits **only when logical** (distinct parts, e.g. research → code → report; typically ≥ 4 h), otherwise returns no steps; 2–4 steps max, same language; no heuristic splitting (fallback = no steps)
+- [x] AI suggests steps automatically only for big tasks after estimate; user can accept, edit, or dismiss; manual "Split" always available; setting "Suggest steps" on/off
+- [x] planner plans steps in order (step N+1 never before step N) using phase-9 sessions; assignment hours = sum of open steps
+- [x] drawer: Steps section (AI suggest, edit title/hours, reorder, check off); calendar blocks show step title
 
 ### Phase 11 — Calendar ranges + UI fixes
 - [ ] views Day / 3 days / Week / Month (+ List); TopBar range picker; URL `?view=&date=`; Month = deadlines + daily load bars; `/plan?from&days` already supports it
@@ -317,3 +319,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 8 done: Lambda actions `stats` + `delete_user` (`make aws-stats`, `make aws-delete-user`), 60 tests green; GitHub Action CI (pytest + SPA build); README final (screenshot, AI Lambda in architecture, cost table, ops). Full `make aws-deploy` (117c6ce) + live smoke: health, SPA fallback, 401 anon, signin, me, /plan, /ai 422 on bad body; Playwright screenshot with no console errors. Leftover `smoke-live@ucu.edu.ua` deleted. Live stats: 1 user, 19 assignments, waitlist 0.
 - 2026-11-18 — Phase 9 done: planner v2 (soft session cap, per-weekday hours incl. days off, interleave toggle, `at_risk` + `shortfall_hours` instead of `unscheduled_hours`, urgent-first within a day); one EDF pass kept (skipping unfinishable items would starve today's exam); `add_missing_columns` forward-only migration run by `migrate`/startup; Settings "Planning" section; one "won't be finished in time" callout replaces per-card unscheduled. 65 tests green.
 - 2026-11-18 — Phase 9 follow-up: `min_session_hours` (default 1.5) — no crumbs; three sweeps (cap+min → min → forced); Settings "Shortest session". 66 tests green.
+- 2026-11-18 — Phase 10 done: `Step` model (cascade), `PUT /assignments/{id}/steps` (one replace call covers accept/edit/reorder/check off/remove), `POST /api/ai/steps` (OpenAI strict JSON, 2–4 steps or none; no heuristic split), planner step precedence with shared session cap, `suggest_steps` setting; drawer Steps section (auto-suggest once for AI-estimated ≥ 4 h tasks, Dismiss remembered in localStorage), blocks show the step on the hours line. 78 tests green; checked in headless Chromium.

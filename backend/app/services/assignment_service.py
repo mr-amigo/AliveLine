@@ -2,8 +2,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.estimation import Estimate, Estimator
-from app.models import Assignment, Course, User
-from app.schemas.assignment import AssignmentCreate, AssignmentUpdate, EstimateIn
+from app.models import Assignment, Course, Step, User
+from app.schemas.assignment import AssignmentCreate, AssignmentUpdate, EstimateIn, StepIn
 
 
 class AssignmentNotFoundError(Exception):
@@ -54,6 +54,13 @@ class AssignmentService:
             self.apply_estimate(a, data.estimate)
         elif a.estimate_source == "heuristic" and ({"title", "description"} & fields.keys()):
             self.apply_estimate(a, None)  # keep the server estimate in sync with the text
+        self.db.commit()
+        return a
+
+    def set_steps(self, assignment_id: int, steps: list[StepIn]) -> Assignment:
+        """Replace the ordered steps (accept a suggestion, edit, reorder, check off, or remove the split)."""
+        a = self.get(assignment_id)
+        a.steps = [Step(title=s.title, hours=s.hours, done=s.done, position=i) for i, s in enumerate(steps)]
         self.db.commit()
         return a
 

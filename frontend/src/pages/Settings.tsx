@@ -32,6 +32,7 @@ export default function Settings() {
   const [session, setSession] = useState(user?.max_session_hours ?? 2)
   const [minSession, setMinSession] = useState(user?.min_session_hours ?? 1.5)
   const [interleave, setInterleave] = useState(user?.interleave ?? true)
+  const [suggestSteps, setSuggestSteps] = useState(user?.suggest_steps ?? true)
   const [busy, setBusy] = useState(false)
 
   const dirty =
@@ -42,7 +43,8 @@ export default function Settings() {
       JSON.stringify(weekdays) !== JSON.stringify(user.weekday_hours) ||
       session !== user.max_session_hours ||
       minSession !== user.min_session_hours ||
-      interleave !== user.interleave)
+      interleave !== user.interleave ||
+      suggestSteps !== user.suggest_steps)
   const setDay = (i: number, v: number) => setWeekdays((w) => (w ? w.map((h, j) => (j === i ? v : h)) : w))
 
   async function submit(e: FormEvent) {
@@ -60,6 +62,7 @@ export default function Settings() {
           max_session_hours: session,
           min_session_hours: minSession,
           interleave,
+          suggest_steps: suggestSteps,
         }),
       )
       await reload()
@@ -147,6 +150,16 @@ export default function Settings() {
 
           <Row label="Shortest session" hint="Don’t split an assignment into pieces smaller than this, unless a deadline leaves no choice.">
             <Stepper label="shortest session hours" value={minSession} onChange={setMinSession} min={0.5} max={4} step={0.5} />
+          </Row>
+
+          <Row label="Suggest steps" hint="For big tasks, AI offers to split the work into ordered steps (research, code, report…)." htmlFor="suggest-steps">
+            <input
+              id="suggest-steps"
+              type="checkbox"
+              checked={suggestSteps}
+              onChange={(e) => setSuggestSteps(e.target.checked)}
+              className="h-4 w-4 accent-accent"
+            />
           </Row>
 
           <Row label="Safety buffer" hint="Aim to finish this many days before each real deadline.">

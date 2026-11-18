@@ -11,6 +11,8 @@ export interface User {
   max_session_hours: number
   min_session_hours: number
   interleave: boolean
+  /** Offer an AI split into steps for big tasks. */
+  suggest_steps: boolean
   created_at: string
 }
 
@@ -33,6 +35,7 @@ export interface SettingsUpdate {
   max_session_hours?: number
   min_session_hours?: number
   interleave?: boolean
+  suggest_steps?: boolean
 }
 
 export type Status = 'can_wait' | 'time_to_start' | 'critical' | 'done'
@@ -65,7 +68,22 @@ export interface Assignment {
   user_hours: number | null
   effective_hours: number
   done: boolean
+  /** Ordered parts; when present, the open steps' hours are what gets planned. */
+  steps: Step[]
   window: WorkWindow
+}
+
+export interface Step {
+  id: number
+  title: string
+  hours: number
+  done: boolean
+}
+
+export interface StepDraft {
+  title: string
+  hours: number
+  done?: boolean
 }
 
 export interface DayItem {
@@ -74,6 +92,9 @@ export interface DayItem {
   course_name: string | null
   hours: number
   status: Status
+  /** Set when this block is one step of a split assignment. */
+  step_id: number | null
+  step_title: string | null
 }
 
 export interface Day {
@@ -106,6 +127,10 @@ export interface EstimateRequest {
   title: string
   description?: string
   course_name?: string | null
+}
+
+export interface StepsRequest extends EstimateRequest {
+  hours: number
 }
 
 export interface ImportResult {

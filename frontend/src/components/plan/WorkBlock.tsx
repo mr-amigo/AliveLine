@@ -19,6 +19,7 @@ export default function WorkBlock({
   const s = STATUS[item.status]
   const height = Math.max(22, item.hours * HOUR_PX - 2)
   const oneLine = height < 40
+  const stepLine = !!item.step_title && height >= 56 // room for title, step and hours on separate lines
   const className = `relative flex w-full min-w-0 overflow-hidden rounded border-l-[3px] px-1.5 py-0.5 text-left ${s.tint} ${
     s.text
   } ${selected ? `ring-1 ${s.ring}` : ''} ${past ? 'opacity-60' : ''} ${
@@ -26,14 +27,21 @@ export default function WorkBlock({
   } transition-shadow duration-[120ms] hover:shadow-[inset_0_0_0_999px_rgba(55,53,47,0.06)] active:shadow-[inset_0_0_0_999px_rgba(55,53,47,0.12)]`
   const content = (
     <>
-      <span className="min-w-0 truncate text-meta font-medium leading-4">{item.title}</span>
-      <span className="tnum shrink-0 text-meta opacity-70">{hoursLabel(item.hours)}</span>
+      <span className="min-w-0 truncate text-meta font-medium leading-4">
+        {item.title}
+        {item.step_title && oneLine && <span className="font-normal"> · {item.step_title}</span>}
+      </span>
+      {stepLine && <span className="min-w-0 truncate text-meta leading-4">{item.step_title}</span>}
+      <span className="tnum min-w-0 shrink-0 truncate text-meta opacity-70">
+        {hoursLabel(item.hours)}
+        {item.step_title && !oneLine && !stepLine && ` · ${item.step_title}`}
+      </span>
     </>
   )
   const props = {
     className,
     style: { height, borderLeftColor: courseColor(item.course_name) },
-    'aria-label': `${item.title}, ${item.hours} hours, ${s.label.toLowerCase()}`,
+    'aria-label': `${item.title}${item.step_title ? `, step: ${item.step_title}` : ''}, ${item.hours} hours, ${s.label.toLowerCase()}`,
   }
   return onSelect ? (
     <button type="button" {...props} aria-pressed={selected} onClick={() => onSelect(item.assignment_id)}>

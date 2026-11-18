@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from app.domain.planner import PlanItem, PlanSettings, Status, WorkWindowPlanner, round_up_half
+from app.domain.planner import PlanItem, PlanSettings, PlanStep, Status, WorkWindowPlanner, round_up_half
 
 TODAY = date(2026, 11, 18)  # Wednesday
 planner = WorkWindowPlanner()
@@ -131,3 +131,38 @@ def test_buffer_never_moves_target_before_today():
 
 def test_hours_round_up_to_half():
     assert round_up_half(1.2) == 1.5 and round_up_half(2.0) == 2.0 and round_up_half(0.1) == 0.5
+
+
+def test_steps_are_planned_in_order_one_session_per_day():
+    steps = (PlanStep(10, 2), PlanStep(11, 2), PlanStep(12, 2))  # research → code → report
+    p = plan([PlanItem(1, d(10), 0, steps=steps)])
+    assert p.steps_on(d(9), 1) == [(12, 2)]
+    assert p.steps_on(d(8), 1) == [(11, 2)]
+    assert p.steps_on(d(7), 1) == [(10, 2)]
+    assert p.on(d(9)) == [(1, 2)] and p.windows[1].start_date == d(7)
+
+
+def test_steps_share_the_items_session_cap_and_keep_order_on_a_forced_day():
+    two_days = plan([PlanItem(1, d(1), 0, steps=(PlanStep(10, 2), PlanStep(11, 2)))], buffer_days=0)
+    assert two_days.steps_on(d(0), 1) == [(10, 2)] and two_days.steps_on(d(1), 1) == [(11, 2)]
+
+    one_day = plan([PlanItem(1, d(0), 0, steps=(PlanStep(10, 1.5), PlanStep(11, 1.5)))], buffer_days=0)
+    assert one_day.steps_on(d(0), 1) == [(10, 1.5), (11, 1.5)]  # earlier step listed first
+    assert one_day.on(d(0)) == [(1, 3)] and not one_day.windows[1].at_risk
+
+
+def test_done_steps_are_skipped_and_missing_step_hours_are_shortfall():
+    p = plan([PlanItem(1, d(10), 99, steps=(PlanStep(10, 4, done=True), PlanStep(11, 2)))])
+    assert sum(h for day in p.daily for _, h in p.on(day)) == 2
+
+    late = plan([PlanItem(1, d(0), 0, steps=(PlanStep(10, 2), PlanStep(11, 3)))], buffer_days=0)
+    assert late.windows[1].at_risk and late.windows[1].shortfall_hours == 2
+    assert late.steps_on(d(0), 1) == [(11, 3)]  # the last step took today; the first one doesn't fit
+
+
+def test_a_step_never_leaves_a_crumb_on_a_day_its_next_step_already_uses():
+    steps = (PlanStep(10, 1.5), PlanStep(11, 3), PlanStep(12, 1.5))
+    p = plan([PlanItem(1, d(5), 0, steps=steps), PlanItem(2, d(4), 3)])
+    hours = [h for day in p.daily for (_, h) in p.on(day)] + [h for k in p.step_pieces for _, h in p.step_pieces[k]]
+    assert min(hours) >= 1.5
+    assert p.steps_on(d(4), 1) == [(12, 1.5)]

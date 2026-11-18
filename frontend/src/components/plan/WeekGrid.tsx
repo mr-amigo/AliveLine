@@ -85,7 +85,7 @@ export default function WeekGrid({ days, assignments, today, selectedId = null, 
 
               <div style={{ ...col, minHeight: bodyMin }} className={`relative row-start-3 flex min-w-0 flex-col gap-[2px] p-1 ${sep}`}>
                 {items.map((it) => (
-                  <WorkBlock key={it.assignment_id} item={it} past={past} selected={it.assignment_id === selectedId} onSelect={onSelect} />
+                  <WorkBlock key={`${it.assignment_id}-${it.step_id ?? ''}`} item={it} past={past} selected={it.assignment_id === selectedId} onSelect={onSelect} />
                 ))}
                 {day.capacity > 0 ? (
                   <div

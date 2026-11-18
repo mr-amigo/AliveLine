@@ -64,7 +64,7 @@ def test_prompt_caps_input_and_parse_defaults():
 
 def test_factory_picks_provider(monkeypatch):
     def configured(**env):
-        deps.get_settings.cache_clear(), deps._configured_estimator.cache_clear()
+        deps.get_settings.cache_clear(), deps._openai_client.cache_clear()
         for k in ("OPENAI_API_KEY",):
             monkeypatch.delenv(k, raising=False)
         for k, v in env.items():
@@ -76,7 +76,7 @@ def test_factory_picks_provider(monkeypatch):
         assert isinstance(configured(OPENAI_API_KEY="k"), OpenAIEstimator)
     finally:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-        deps.get_settings.cache_clear(), deps._configured_estimator.cache_clear()
+        deps.get_settings.cache_clear(), deps._openai_client.cache_clear()
 
 
 def test_ai_estimate_endpoint(client, signed_in):

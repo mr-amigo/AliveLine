@@ -82,18 +82,21 @@ class OpenAIEstimator(_LlmEstimator):
     provider = "openai"
 
     def _call(self, prompt: str) -> tuple[Any, dict[str, int]]:
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            max_completion_tokens=300,
-            messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
-            response_format={
-                "type": "json_schema",
-                "json_schema": {"name": "estimate", "strict": True, "schema": ESTIMATE_SCHEMA},
-            },
-        )
-        content = resp.choices[0].message.content
-        if not content:
-            raise ValueError(f"empty response (finish_reason={resp.choices[0].finish_reason})")
-        usage = {"input_tokens": resp.usage.prompt_tokens, "output_tokens": resp.usage.completion_tokens} if resp.usage else {}
-        return json.loads(content), usage
+        return openai_json(self.client, self.model, SYSTEM_PROMPT, prompt, "estimate", ESTIMATE_SCHEMA, 300)
 
+
+def openai_json(
+    client: Any, model: str, system: str, prompt: str, name: str, schema: dict[str, Any], max_tokens: int
+) -> tuple[Any, dict[str, int]]:
+    """One Chat Completions call with a strict JSON schema; returns (parsed JSON, token usage)."""
+    resp = client.chat.completions.create(
+        model=model,
+        max_completion_tokens=max_tokens,
+        messages=[{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+        response_format={"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}},
+    )
+    content = resp.choices[0].message.content
+    if not content:
+        raise ValueError(f"empty response (finish_reason={resp.choices[0].finish_reason})")
+    usage = {"input_tokens": resp.usage.prompt_tokens, "output_tokens": resp.usage.completion_tokens} if resp.usage else {}
+    return json.loads(content), usage

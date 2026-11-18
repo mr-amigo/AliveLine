@@ -6,6 +6,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from app.domain.planner import Status
 from app.schemas.common import UtcDatetime
 
+MAX_STEPS = 10
+
 
 class EstimateIn(BaseModel):
     """An estimate produced elsewhere (the AI Lambda) and passed through by the client."""
@@ -51,6 +53,29 @@ class AssignmentUpdate(BaseModel):
     _deadline_aware = field_validator("deadline")(_aware)
 
 
+class StepIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    title: str = Field(min_length=1, max_length=200)
+    hours: float = Field(ge=0.5, le=40, multiple_of=0.5)
+    done: bool = False
+
+
+class StepsUpdate(BaseModel):
+    """The full ordered list of steps; an empty list removes the split."""
+
+    steps: list[StepIn] = Field(max_length=MAX_STEPS)
+
+
+class StepOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str
+    hours: float
+    done: bool
+
+
 class WindowOut(BaseModel):
     start_date: date
     target_finish: date
@@ -72,6 +97,7 @@ class AssignmentOut(BaseModel):
     user_hours: float | None
     effective_hours: float
     done: bool
+    steps: list[StepOut]
     window: WindowOut
 
 
@@ -81,6 +107,8 @@ class DayItem(BaseModel):
     course_name: str | None
     hours: float
     status: Status
+    step_id: int | None = None  # set when this block is one step of a split assignment
+    step_title: str | None = None
 
 
 class DayOut(BaseModel):

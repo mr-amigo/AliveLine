@@ -15,16 +15,25 @@ const steps = [
 
 /** Demo plan for the next 7 days, rendered with the real WeekGrid. */
 function demoPlan(today: string): { days: Day[]; assignments: Assignment[] } {
-  const demo: { title: string; course: string; due: number; status: Status; blocks: [number, number][] }[] = [
-    { title: 'Lab 3: REST API', course: 'OOAD', due: 3, status: 'critical', blocks: [[0, 2], [1, 2], [2, 1]] },
+  const demo: { title: string; course: string; due: number; status: Status; blocks: [number, number][]; steps?: string[] }[] = [
+    { title: 'Lab 3: REST API', course: 'OOAD', due: 3, status: 'critical', blocks: [[0, 2], [1, 2], [2, 1]], steps: ['Read the brief', 'Write the endpoints', 'Tests + report'] },
     { title: 'Problem set 6', course: 'Linear Algebra', due: 4, status: 'time_to_start', blocks: [[2, 2], [3, 2]] },
     { title: 'Essay draft', course: 'Philosophy', due: 5, status: 'time_to_start', blocks: [[0, 1], [1, 1], [3, 1], [4, 1]] },
     { title: 'Midterm prep', course: 'Calculus', due: 6, status: 'can_wait', blocks: [[4, 2], [5, 2]] },
   ]
   const days: Day[] = Array.from({ length: 7 }, (_, i) => ({ date: addDays(today, i), capacity: 3, items: [] as DayItem[] }))
   const assignments = demo.map((d, id): Assignment => {
-    for (const [day, hours] of d.blocks)
-      days[day].items.push({ assignment_id: id, title: d.title, course_name: d.course, hours, status: d.status })
+    d.blocks.forEach(([day, hours], i) =>
+      days[day].items.push({
+        assignment_id: id,
+        title: d.title,
+        course_name: d.course,
+        hours,
+        status: d.status,
+        step_id: d.steps ? i : null,
+        step_title: d.steps?.[i] ?? null,
+      }),
+    )
     return {
       id,
       title: d.title,
@@ -38,6 +47,7 @@ function demoPlan(today: string): { days: Day[]; assignments: Assignment[] } {
       user_hours: null,
       effective_hours: d.blocks.reduce((s, [, h]) => s + h, 0),
       done: false,
+      steps: (d.steps ?? []).map((title, i) => ({ id: i, title, hours: d.blocks[i][1], done: false })),
       window: { start_date: today, target_finish: addDays(today, d.due - 1), status: d.status, at_risk: false, shortfall_hours: 0 },
     }
   })

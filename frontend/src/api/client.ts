@@ -9,6 +9,8 @@ import type {
   SettingsUpdate,
   SignInData,
   SignUpData,
+  StepDraft,
+  StepsRequest,
   User,
 } from './types'
 
@@ -21,7 +23,7 @@ export class ApiError extends Error {
   }
 }
 
-type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE'
+type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
 
 async function errorMessage(res: Response): Promise<string> {
   try {
@@ -67,6 +69,7 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: (path: string) => request<void>('DELETE', path),
 }
 
@@ -93,10 +96,12 @@ export const assignmentsApi = {
   create: (data: AssignmentCreate) => api.post<Assignment>('/assignments', data),
   update: (id: number, data: AssignmentUpdate) => api.patch<Assignment>(`/assignments/${id}`, data),
   remove: (id: number) => api.del(`/assignments/${id}`),
+  setSteps: (id: number, steps: StepDraft[]) => api.put<Assignment>(`/assignments/${id}/steps`, { steps }),
 }
 
 export const aiApi = {
   estimate: (data: EstimateRequest) => api.post<Estimate>('/ai/estimate', data),
+  steps: (data: StepsRequest) => api.post<{ steps: StepDraft[] }>('/ai/steps', data),
 }
 
 export const importApi = {

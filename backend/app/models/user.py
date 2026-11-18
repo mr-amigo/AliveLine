@@ -20,6 +20,7 @@ class User(Base):
     max_session_hours: Mapped[float] = mapped_column(Float, default=2.0, server_default=text("2.0"))
     min_session_hours: Mapped[float] = mapped_column(Float, default=1.5, server_default=text("1.5"))
     interleave: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
+    suggest_steps: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
