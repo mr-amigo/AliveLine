@@ -6,7 +6,7 @@ function isTyping(target: EventTarget | null): boolean {
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)
 }
 
-/** Single-key shortcuts (DESIGN.md §7), ignored while typing or with modifiers. Keys: `e.key` values, letters lowercase. */
+/** Single-key shortcuts, ignored while typing or with modifiers. Keys: `e.key` values, letters lowercase. */
 export function useShortcuts(map: Record<string, () => void>, enabled = true): void {
   const ref = useRef(map)
   ref.current = map

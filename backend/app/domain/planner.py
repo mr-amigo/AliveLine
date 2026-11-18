@@ -1,6 +1,6 @@
 """Work-window planning: as-late-as-possible scheduling of hours across all open assignments.
 
-Pure domain logic (no FastAPI/SQLAlchemy). See docs/PLAN.md §4 and §4 v2.
+Pure domain logic (no FastAPI/SQLAlchemy).
 """
 
 import math

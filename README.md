@@ -41,16 +41,13 @@ FastAPI: routers ─▶ services ─▶ domain (pure: planner, estimators, impor
 
 Locally (and in `infra/Dockerfile`), FastAPI serves the built SPA itself, with SQLite or Postgres.
 
-Full OOAD design (use cases, domain model, planning algorithm, API, phases): [docs/PLAN.md](docs/PLAN.md).
-UI design system: [docs/DESIGN.md](docs/DESIGN.md). Product one-pager: [docs/ONE_PAGER.md](docs/ONE_PAGER.md).
-
 ## Repo layout
 ```
 backend/    FastAPI app (app/core, models, schemas, domain, services, api) + pytest tests
 frontend/   React 18 + TypeScript + Vite + Tailwind v4
 infra/      CloudFormation (backend-ecr, backend, ai, frontend), Dockerfile.lambda, Dockerfile (all-in-one), docker-compose.yml
 Makefile    make aws-* deployment targets (`make` lists them)
-docs/       PLAN.md (design), DESIGN.md (UI system), ONE_PAGER.md
+docs/img/   README screenshot
 .github/    CI workflow (pytest + npm run build)
 ```
 

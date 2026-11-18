@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Tokens: docs/DESIGN.md §2–4 (Notion light theme) */
+/* Design tokens (Notion light theme) */
 @theme {
   --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", Helvetica,
     "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji", "Segoe UI Symbol";

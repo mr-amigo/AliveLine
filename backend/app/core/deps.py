@@ -72,7 +72,7 @@ def _configured_estimator() -> Estimator:
 
 
 def get_estimator() -> Estimator:
-    """Estimator strategy chosen by config (docs/PLAN.md §5). Overridable in tests."""
+    """Estimator strategy chosen by config. Overridable in tests."""
     return _configured_estimator()
 
 

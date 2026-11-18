@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 
-/** Monochrome mark + wordmark (DESIGN.md §9: own brand, never the reference product's logo). */
+/** Monochrome mark + wordmark (own brand, never the reference product's logo). */
 export default function Logo({ to = '/' }: { to?: string }) {
   return (
     <Link to={to} className="inline-flex items-center gap-2 text-section font-semibold tracking-tight text-text">

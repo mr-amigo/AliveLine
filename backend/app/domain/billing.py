@@ -1,4 +1,4 @@
-"""Free vs Pro rules (docs/PLAN.md §11). Pure: no FastAPI/SQLAlchemy.
+"""Free vs Pro rules. Pure: no FastAPI/SQLAlchemy.
 
 Free keeps the core product forever (deadlines, import, planner, one AI estimate per assignment, with a
 monthly fair-use cap). Extra AI features are Pro, each with a few lifetime trial uses on Free.

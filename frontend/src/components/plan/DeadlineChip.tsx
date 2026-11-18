@@ -2,7 +2,7 @@ import type { Assignment } from '../../api/types'
 import { kyivTime } from '../../lib/dates'
 import { STATUS } from '../../lib/status'
 
-/** All-day-row chip marking a deadline, always one line (DESIGN.md §5). At-risk items are listed once above the grid. */
+/** All-day-row chip marking a deadline, always one line. At-risk items are listed once above the grid. */
 export default function DeadlineChip({ a, showTime = false, onSelect }: { a: Assignment; showTime?: boolean; onSelect?: (id: number) => void }) {
   const s = STATUS[a.window.status]
   const label = `${a.title}, due ${kyivTime(a.deadline)}, ${s.label.toLowerCase()}${a.window.at_risk ? ", won't make it" : ''}`

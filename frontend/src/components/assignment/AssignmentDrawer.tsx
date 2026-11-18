@@ -21,7 +21,7 @@ interface Props {
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const errText = (err: unknown) => (err instanceof ApiError ? err.message : 'Something went wrong')
 
-/** Notion side peek (bottom sheet on mobile) to create or edit one assignment (DESIGN.md §5). */
+/** Notion side peek (bottom sheet on mobile) to create or edit one assignment. */
 export default function AssignmentDrawer({ assignment: a, courses, today, onClose, onOpen, onChanged }: Props) {
   const toast = useToast()
   const { user } = useAuth()

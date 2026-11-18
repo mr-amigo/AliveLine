@@ -3,10 +3,10 @@ import { hoursLabel } from '../../lib/dates'
 import { courseColor, STATUS } from '../../lib/status'
 
 export const HOUR_PX = 32
-/** Room for a two-line title (DESIGN.md §5): short sessions are taller than their hours. */
+/** Room for a two-line title: short sessions are taller than their hours. */
 const MIN_PX = 40
 
-/** A day's slice of work on one assignment; height ∝ hours, min 40px (DESIGN.md §5). */
+/** A day's slice of work on one assignment; height ∝ hours, min 40px. */
 export default function WorkBlock({
   item,
   selected,

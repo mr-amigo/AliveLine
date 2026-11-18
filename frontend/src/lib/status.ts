@@ -1,6 +1,6 @@
 import type { Status } from '../api/types'
 
-// Full class strings so Tailwind can see them (DESIGN.md §2 status = Notion select tags).
+// Full class strings so Tailwind can see them (status = Notion select tags).
 export const STATUS: Record<Status, { label: string; tint: string; text: string; dot: string; ring: string }> = {
   critical: { label: 'Critical', tint: 'bg-critical-tint', text: 'text-critical-text', dot: 'bg-critical', ring: 'ring-critical' },
   time_to_start: { label: 'Time to start', tint: 'bg-start-tint', text: 'text-start-text', dot: 'bg-start', ring: 'ring-start' },
@@ -10,7 +10,7 @@ export const STATUS: Record<Status, { label: string; tint: string; text: string;
 
 export const STATUS_ORDER: Status[] = ['critical', 'time_to_start', 'can_wait', 'done']
 
-// DESIGN.md course colours (Notion blue, purple, pink, green, yellow, brown): solid / tag bg / tag text.
+// Course colours (Notion blue, purple, pink, green, yellow, brown): solid / tag bg / tag text.
 // The API exposes course names, not ids, so the index is a stable name hash.
 const COURSE_COLORS = [
   ['#337EA9', '#D3E5EF', '#183347'],

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import Logo from './Logo'
 import { Alert, Button } from './ui'
 
-/** Shared shell for sign-in / sign-up: centred 360px column, submit handling, error display (DESIGN.md §5). */
+/** Shared shell for sign-in / sign-up: centred 360px column, submit handling, error display. */
 export default function AuthForm({
   title,
   subtitle,

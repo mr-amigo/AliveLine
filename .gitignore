@@ -238,3 +238,7 @@ docs/feedback/
 # Local tooling
 CLAUDE.md
 .vscode/
+# Local planning docs
+docs/PLAN.md
+docs/DESIGN.md
+docs/ONE_PAGER.md

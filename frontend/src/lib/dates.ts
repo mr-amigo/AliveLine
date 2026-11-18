@@ -127,7 +127,7 @@ export function monthGrid(date: string): string[] {
 /** "2h", "1.5h" */
 export const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`
 
-// ---- Calendar views (DESIGN.md §5): which days each view fetches and shows ----
+// ---- Calendar views: which days each view fetches and shows ----
 
 export type CalView = 'day' | '3day' | 'week' | 'month'
 export type View = CalView | 'list'

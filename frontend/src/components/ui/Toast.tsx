@@ -5,7 +5,7 @@ interface ToastState { id: number; text: string; kind: Kind }
 
 const ToastContext = createContext<(text: string, kind?: Kind) => void>(() => undefined)
 
-/** Bottom-centre dark snackbar (Notion style) for API errors (`detail`) and confirmations (DESIGN.md §5). */
+/** Bottom-centre dark snackbar (Notion style) for API errors (`detail`) and confirmations. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null)
   const timer = useRef<number>()

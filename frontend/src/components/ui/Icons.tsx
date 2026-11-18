@@ -1,4 +1,4 @@
-// 16px inline icons, 1.5px stroke (DESIGN.md §9: emoji only as page icons, never as controls).
+// 16px inline icons, 1.5px stroke.
 const paths = {
   'chevron-left': 'M10 3.5 5.5 8l4.5 4.5',
   'chevron-right': 'M6 3.5 10.5 8 6 12.5',

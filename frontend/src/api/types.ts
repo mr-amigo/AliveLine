@@ -1,4 +1,4 @@
-// Mirrors backend schemas (docs/PLAN.md §7).
+// Mirrors backend schemas.
 
 export interface User {
   id: number

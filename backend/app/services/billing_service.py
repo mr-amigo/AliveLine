@@ -1,4 +1,4 @@
-"""Plans, usage limits and Paddle webhooks (docs/PLAN.md phase 13)."""
+"""Plans, usage limits and Paddle webhooks."""
 
 import hashlib
 import hmac

@@ -7,7 +7,7 @@ export { ToastProvider, useToast } from './Toast'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
-// Notion buttons: blue filled, white with hairline outline, borderless ghost (DESIGN.md §5).
+// Notion buttons: blue filled, white with hairline outline, borderless ghost.
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-white hover:bg-accent-hover',
   secondary: 'bg-bg text-text shadow-btn hover:bg-bg-hover',
@@ -155,7 +155,7 @@ export function Stepper({
   )
 }
 
-/** Spinner that adds "Waking up the server…" after 3 s (Aurora resumes from pause, DESIGN.md §6). */
+/** Spinner that adds "Waking up the server…" after 3 s (Aurora resumes from pause). */
 export function Loading({ slow }: { slow: boolean }) {
   return (
     <div className="flex flex-col items-center gap-2 py-16 text-meta text-text-2">

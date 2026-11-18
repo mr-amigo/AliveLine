@@ -5,7 +5,7 @@ import { Icon, type IconName } from '../ui'
 export const PAGE_X = 'px-6 md:px-12 xl:px-24'
 export const NARROW = 'mx-auto w-full max-w-[756px] px-6'
 
-/** Notion page header: line-icon tile (in place of Notion's emoji, DESIGN.md §9), 40px bold title, grey description. */
+/** Notion page header: line-icon tile (in place of Notion's emoji), 40px bold title, grey description. */
 export default function PageHeader({ icon, title, description, narrow = false }: { icon?: IconName; title: string; description?: ReactNode; narrow?: boolean }) {
   return (
     <div className={`${narrow ? NARROW : PAGE_X} pt-8 md:pt-12`}>

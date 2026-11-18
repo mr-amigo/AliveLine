@@ -1,4 +1,4 @@
-"""Workload estimation strategies (see docs/PLAN.md §5)."""
+"""Workload estimation strategies."""
 from app.domain.estimation.base import Estimate, Estimator
 from app.domain.estimation.heuristic import HeuristicEstimator
 from app.domain.estimation.llm import OpenAIEstimator
