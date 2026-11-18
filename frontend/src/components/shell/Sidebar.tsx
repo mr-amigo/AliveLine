@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import type { Plan } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
-import { kyivDate, mondayOf } from '../../lib/dates'
+import { kyivDate, type CalView, type View } from '../../lib/dates'
 import { courseColor, courseKey } from '../../lib/status'
 import TodayList from '../plan/TodayList'
 import { Icon, IconButton, Skeleton, type IconName } from '../ui'
@@ -11,7 +11,9 @@ import { rowClass, SidebarSection } from './SidebarSection'
 interface Props {
   plan: Plan | null
   today: string
-  week: string
+  view: View
+  range: { from: string; days: number }
+  calView: CalView
   hidden: Set<string>
   onToggleCourse: (key: string) => void
   onSelect: (id: number) => void
@@ -24,7 +26,7 @@ const links: { to: string; label: string; icon: IconName }[] = [
   { to: '/app/settings', label: 'Settings', icon: 'settings' },
 ]
 
-export default function Sidebar({ plan, today, week, hidden, onToggleCourse, onSelect, onClose }: Props) {
+export default function Sidebar({ plan, today, view, range, calView, hidden, onToggleCourse, onSelect, onClose }: Props) {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const deadlines = new Set(plan?.assignments.filter((a) => !a.done).map((a) => kyivDate(a.deadline)))
@@ -34,7 +36,7 @@ export default function Sidebar({ plan, today, week, hidden, onToggleCourse, onS
   const name = user?.name.trim() || 'My'
 
   function pick(date: string) {
-    navigate(`/app?week=${mondayOf(date)}`)
+    navigate(`/app?view=${view === 'list' ? calView : view}&date=${date}`)
     onClose?.()
   }
 
@@ -71,7 +73,7 @@ export default function Sidebar({ plan, today, week, hidden, onToggleCourse, onS
       </div>
 
       <div className="mt-4">
-        <MiniMonth today={today} week={week} deadlines={deadlines} onPick={pick} />
+        <MiniMonth today={today} range={range} highlight={view !== 'month'} deadlines={deadlines} onPick={pick} />
       </div>
 
       <div className="mt-3">

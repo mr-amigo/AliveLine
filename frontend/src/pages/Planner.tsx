@@ -1,6 +1,8 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import { ApiError } from '../api/client'
 import ListView from '../components/plan/ListView'
+import MonthGrid from '../components/plan/MonthGrid'
 import WeekGrid from '../components/plan/WeekGrid'
 import { useShell } from '../components/shell/AppShell'
 import PageHeader, { PAGE_X } from '../components/shell/PageHeader'
@@ -8,65 +10,79 @@ import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, IconButton, Loading, Skeleton } from '../components/ui'
 import { useShortcuts } from '../hooks/useShortcuts'
 import type { Assignment } from '../api/types'
-import { addDays, hoursLabel, kyivDate, mondayOf, relative, weekTitle } from '../lib/dates'
+import { AI_CAP, estimateWithAi, needsAi } from '../lib/aiPass'
+import { CAL_VIEWS, hoursLabel, kyivDate, rangeTitle, relative, shiftView, VIEW_LABEL, type CalView } from '../lib/dates'
 
-type View = 'week' | 'list'
-const isMobile = () => window.matchMedia('(max-width: 767px)').matches
+const SHORTCUT: Record<CalView, string> = { day: 'D', '3day': '3', week: 'W', month: 'M' }
 
 export default function Planner() {
   const s = useShell()
-  const [params, setParams] = useSearchParams()
-  const view: View = (params.get('view') as View | null) ?? (isMobile() ? 'list' : 'week')
+  const { view } = s
+  const calendar = view !== 'list'
+  const title = rangeTitle(view, s.date)
 
-  function setView(v: View) {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('view', v)
-      return next
-    })
-  }
-
-  const goToday = () => s.setWeek(mondayOf(s.today))
-  const shift = (n: number) => s.setWeek(addDays(s.week, n * 7))
+  const goToday = () => s.setDate(s.today)
+  const shift = (n: number) => s.setDate(shiftView(view, s.date, n))
 
   useShortcuts({
     t: goToday,
-    ArrowLeft: () => view === 'week' && shift(-1),
-    ArrowRight: () => view === 'week' && shift(1),
-    w: () => setView('week'),
-    l: () => setView('list'),
+    ArrowLeft: () => calendar && shift(-1),
+    ArrowRight: () => calendar && shift(1),
+    d: () => s.setView('day'),
+    3: () => s.setView('3day'),
+    w: () => s.setView('week'),
+    m: () => s.setView('month'),
+    l: () => s.setView('list'),
     n: () => s.openAssignment('new'),
   })
 
   const plan = s.plan
   const atRisk = plan?.assignments.filter((a) => !a.done && a.window.at_risk) ?? []
+  const rough = plan?.assignments.filter(needsAi) ?? []
 
-  const tabs: { v: View; label: string; icon: 'calendar' | 'list'; key: string }[] = [
-    { v: 'week', label: 'Week', icon: 'calendar', key: 'W' },
-    { v: 'list', label: 'List', icon: 'list', key: 'L' },
+  const tabs: { calendar: boolean; label: string; icon: 'calendar' | 'list'; key: string }[] = [
+    { calendar: true, label: 'Calendar', icon: 'calendar', key: SHORTCUT[s.calView] },
+    { calendar: false, label: 'List', icon: 'list', key: 'L' },
   ]
+
+  // Range picker (Notion Calendar puts it top right).
+  const picker = calendar && (
+    <label className="relative flex items-center">
+      <span className="sr-only">Range</span>
+      <select
+        value={view}
+        onChange={(e) => s.setView(e.target.value as CalView)}
+        className="h-7 appearance-none rounded bg-bg pl-2 pr-7 text-body font-medium text-text shadow-btn hover:bg-bg-hover focus-visible:outline-2 focus-visible:outline-accent"
+      >
+        {CAL_VIEWS.map((v) => (
+          <option key={v} value={v}>{VIEW_LABEL[v]}</option>
+        ))}
+      </select>
+      <Icon name="chevron-down" className="pointer-events-none absolute right-2 text-text-3" />
+    </label>
+  )
 
   return (
     <>
-      <TopBar icon="🗓️" crumbs={['Planner', view === 'week' ? weekTitle(s.week) : 'All assignments']} />
+      <TopBar icon="calendar" crumbs={['Planner', calendar ? title : 'All assignments']} right={picker} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <PageHeader icon="🗓️" title="Planner" description="When to start each assignment — not just when it’s due." />
+        <PageHeader title="Planner" description="When to start each assignment — not just when it’s due." />
 
-        {/* Notion database view bar: view tabs left, actions + blue New right */}
+        {/* Notion database view bar: view tabs left, blue New right */}
         <div className={`${PAGE_X} mt-6`}>
           <div className="flex h-10 items-center gap-1 border-b border-line">
             <div role="tablist" aria-label="View" className="flex h-full items-center gap-1">
               {tabs.map((t) => (
                 <button
-                  key={t.v}
+                  key={t.label}
                   type="button"
                   role="tab"
-                  aria-selected={view === t.v}
+                  aria-selected={calendar === t.calendar}
                   title={`${t.label} (${t.key})`}
-                  onClick={() => setView(t.v)}
+                  onClick={() => s.setView(t.calendar ? s.calView : 'list')}
                   className={`relative flex h-full items-center gap-1.5 px-1 text-body font-medium after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 ${
-                    view === t.v ? 'text-text after:bg-text' : 'text-text-2 hover:text-text'
+                    calendar === t.calendar ? 'text-text after:bg-text' : 'text-text-2 hover:text-text'
                   }`}
                 >
                   <span className="flex h-7 items-center gap-1.5 rounded px-1.5 hover:bg-bg-hover">
@@ -84,12 +100,12 @@ export default function Planner() {
             </div>
           </div>
 
-          {view === 'week' && (
+          {calendar && (
             <div className="flex h-12 items-center gap-1">
-              <h2 className="mr-auto text-body font-semibold">{weekTitle(s.week)}</h2>
-              <IconButton label="Previous week (←)" onClick={() => shift(-1)}><Icon name="chevron-left" /></IconButton>
+              <h2 className="mr-auto truncate text-body font-semibold">{title}</h2>
+              <IconButton label={`Previous ${VIEW_LABEL[view].toLowerCase()} (←)`} onClick={() => shift(-1)}><Icon name="chevron-left" /></IconButton>
               <Button variant="ghost" size="sm" onClick={goToday} title="Today (T)">Today</Button>
-              <IconButton label="Next week (→)" onClick={() => shift(1)}><Icon name="chevron-right" /></IconButton>
+              <IconButton label={`Next ${VIEW_LABEL[view].toLowerCase()} (→)`} onClick={() => shift(1)}><Icon name="chevron-right" /></IconButton>
             </div>
           )}
         </div>
@@ -109,13 +125,24 @@ export default function Planner() {
           <EmptyState onNew={() => s.openAssignment('new')} />
         ) : (
           <>
-            {atRisk.length > 0 && (
-              <div className={`${PAGE_X} pb-3 ${view === 'list' ? 'pt-4' : ''}`}>
-                <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />
+            {(atRisk.length > 0 || rough.length > 0) && (
+              <div className={`${PAGE_X} space-y-2 pb-3 ${calendar ? '' : 'pt-4'}`}>
+                {atRisk.length > 0 && <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />}
+                {rough.length > 0 && <RoughEstimates items={rough} onDone={s.reload} />}
               </div>
             )}
-            <div className={`${PAGE_X} flex flex-1 flex-col ${view === 'list' ? 'pt-2' : ''}`}>
-              {view === 'week' ? (
+            <div className={`${PAGE_X} flex flex-1 flex-col ${calendar ? '' : 'pt-2'}`}>
+              {view === 'month' ? (
+                <MonthGrid
+                  month={s.date}
+                  days={plan.days}
+                  assignments={plan.assignments}
+                  today={plan.today}
+                  hidden={s.hidden}
+                  onSelect={s.openAssignment}
+                  onPickDay={(d) => s.setView('day', d)}
+                />
+              ) : calendar ? (
                 <WeekGrid
                   days={plan.days}
                   assignments={plan.assignments}
@@ -132,6 +159,46 @@ export default function Planner() {
         )}
       </div>
     </>
+  )
+}
+
+/** Items still on the rule-based estimate (e.g. imported before the AI pass ran): one button runs AI over all of them. */
+function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => Promise<void> }) {
+  const [progress, setProgress] = useState<number | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const total = Math.min(items.length, AI_CAP)
+  const n = items.length
+
+  async function run() {
+    setError(null)
+    setProgress(0)
+    try {
+      const estimated = await estimateWithAi(items, setProgress)
+      if (estimated < total) setError(`AI couldn’t estimate ${total - estimated} of them. Open one to set hours yourself.`)
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'AI estimates stopped')
+    }
+    await onDone()
+    setProgress(null)
+  }
+
+  return (
+    <Alert kind="info" icon={<Icon name="sparkle" />}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <p className="min-w-0 flex-1">
+          <strong className="font-semibold">
+            {n} rough estimate{n === 1 ? '' : 's'}
+          </strong>{' '}
+          <span className="text-text-2">
+            {progress === null ? '— guessed from the title only. AI reads the whole task and gets closer.' : `— estimating ${progress} / ${total}…`}
+          </span>
+        </p>
+        <Button variant="secondary" size="sm" className="bg-transparent" loading={progress !== null} onClick={() => void run()}>
+          Estimate all with AI
+        </Button>
+      </div>
+      {error && <p className="mt-1 text-text-2">{error}</p>}
+    </Alert>
   )
 }
 

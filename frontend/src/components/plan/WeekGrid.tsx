@@ -16,9 +16,16 @@ interface Props {
   onSelect?: (id: number) => void
 }
 
+/** Grid templates per column count; full strings so Tailwind sees them. 7 days swipe 3-at-a-time under 768px. */
+const COLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  3: 'grid-cols-3',
+  7: 'grid-cols-[repeat(7,minmax(calc((100vw-3rem)/3),1fr))] md:grid-cols-7',
+}
+
 /**
- * Seven day columns: header, deadline row, stacked work blocks (no hour rows — we plan hours per day).
- * Under 768px it becomes a horizontally swipeable 3-day view (scroll-snap).
+ * Day columns (Day / 3 days / Week views): header, deadline row, stacked work blocks
+ * (no hour rows — we plan hours per day).
  */
 export default function WeekGrid({ days, assignments, today, selectedId = null, hidden, onSelect }: Props) {
   const visible = (course: string | null) => !hidden?.has(courseKey(course))
@@ -42,8 +49,8 @@ export default function WeekGrid({ days, assignments, today, selectedId = null, 
     <div ref={scroller} className="relative flex-1 snap-x snap-mandatory overflow-x-auto md:overflow-x-visible">
       <div
         role="list"
-        aria-label="Week plan"
-        className="grid h-full grid-cols-[repeat(7,minmax(calc((100vw-3rem)/3),1fr))] grid-rows-[auto_auto_1fr] border-t border-line md:grid-cols-7"
+        aria-label={days.length === 1 ? 'Day plan' : `${days.length}-day plan`}
+        className={`grid h-full grid-rows-[auto_auto_1fr] border-t border-line ${COLS[days.length] ?? COLS[7]}`}
       >
         {days.map((day, i) => {
           const isToday = day.date === today
@@ -73,10 +80,10 @@ export default function WeekGrid({ days, assignments, today, selectedId = null, 
               </div>
 
               <div style={col} className={`row-start-2 flex min-h-8 min-w-0 flex-col gap-1 border-b border-line p-1 ${sep}`}>
-                {due.slice(0, MAX_CHIPS).map((a) => (
-                  <DeadlineChip key={a.id} a={a} onSelect={onSelect} />
+                {due.slice(0, days.length > 3 ? MAX_CHIPS : undefined).map((a) => (
+                  <DeadlineChip key={a.id} a={a} showTime={days.length <= 3} onSelect={onSelect} />
                 ))}
-                {due.length > MAX_CHIPS && (
+                {days.length > 3 && due.length > MAX_CHIPS && (
                   <span className="px-1 text-meta text-text-2" title={due.slice(MAX_CHIPS).map((a) => a.title).join('\n')}>
                     +{due.length - MAX_CHIPS} more
                   </span>

@@ -76,9 +76,9 @@ export default function Settings() {
 
   return (
     <>
-      <TopBar icon="⚙️" crumbs={['Settings']} />
+      <TopBar icon="settings" crumbs={['Settings']} />
       <div className="flex-1 overflow-y-auto">
-        <PageHeader narrow icon="⚙️" title="Settings" description="These numbers decide when AliveLine tells you to start." />
+        <PageHeader narrow title="Settings" description="These numbers decide when AliveLine tells you to start." />
         <form onSubmit={submit} className={`${NARROW} pb-24 pt-6`}>
           <h2 className="border-b border-line pb-3 text-section font-medium">Profile</h2>
 

@@ -126,3 +126,47 @@ export function monthGrid(date: string): string[] {
 
 /** "2h", "1.5h" */
 export const hoursLabel = (h: number) => `${Number.isInteger(h) ? h : h.toFixed(1)}h`
+
+// ---- Calendar views (DESIGN.md §5): which days each view fetches and shows ----
+
+export type CalView = 'day' | '3day' | 'week' | 'month'
+export type View = CalView | 'list'
+export const CAL_VIEWS: CalView[] = ['day', '3day', 'week', 'month']
+export const VIEW_LABEL: Record<View, string> = { day: 'Day', '3day': '3 days', week: 'Week', month: 'Month', list: 'List' }
+export const isView = (v: string | null): v is View => v === 'list' || CAL_VIEWS.includes(v as CalView)
+
+export const firstOfMonth = (date: string) => `${date.slice(0, 8)}01`
+
+export function addMonths(date: string, n: number): string {
+  const [y, m] = date.split('-').map(Number)
+  return toIso(new Date(Date.UTC(y, m - 1 + n, 1)))
+}
+
+export const daysInMonth = (date: string) => daysBetween(firstOfMonth(date), addMonths(date, 1))
+
+/** Days `/plan` is asked for. Month = only its own days (API max 31); list = the week (it shows every assignment anyway). */
+export function viewRange(view: View, date: string): { from: string; days: number } {
+  if (view === 'day') return { from: date, days: 1 }
+  if (view === '3day') return { from: date, days: 3 }
+  if (view === 'month') return { from: firstOfMonth(date), days: daysInMonth(date) }
+  return { from: mondayOf(date), days: 7 }
+}
+
+/** The anchor date after moving `n` periods of `view`. */
+export function shiftView(view: View, date: string, n: number): string {
+  if (view === 'month') return addMonths(date, n)
+  return addDays(date, n * (view === 'day' ? 1 : view === '3day' ? 3 : 7))
+}
+
+/** "Wed 18 Nov 2026" · "18 – 20 Nov 2026" · "November 2026" (week, month). */
+export function rangeTitle(view: View, date: string): string {
+  if (view === 'day') return `${mediumDay(date)} ${year(date)}`
+  if (view === '3day') {
+    const end = addDays(date, 2)
+    const m = (d: string) => monthShortFmt.format(toUtc(d))
+    const head = m(date) === m(end) ? `${dayNum(date)}` : year(date) === year(end) ? `${dayNum(date)} ${m(date)}` : `${dayNum(date)} ${m(date)} ${year(date)}`
+    return `${head} – ${dayNum(end)} ${m(end)} ${year(end)}`
+  }
+  if (view === 'month') return `${monthName(date)} ${year(date)}`
+  return weekTitle(mondayOf(date))
+}

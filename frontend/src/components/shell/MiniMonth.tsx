@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react'
-import { addDays, dayNum, mediumDay, monthGrid, monthName, mondayOf, year } from '../../lib/dates'
+import { addDays, dayNum, firstOfMonth, mediumDay, monthGrid, monthName, year } from '../../lib/dates'
 import { Icon, IconButton } from '../ui'
 
 const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
-/** Month picker: click a date → jump to its week; dots mark deadlines; today = red circle (Notion Calendar). */
+/** Month picker: click a date → jump to it in the current view; visible range shaded; dots mark deadlines; today = red circle (Notion Calendar). */
 export default function MiniMonth({
   today,
-  week,
+  range,
+  highlight,
   deadlines,
   onPick,
 }: {
   today: string
-  week: string
+  range: { from: string; days: number }
+  highlight: boolean
   deadlines: Set<string>
   onPick: (date: string) => void
 }) {
-  const anchor = (w: string) => `${addDays(w, 3).slice(0, 8)}01`
-  const [month, setMonth] = useState(anchor(week))
-  useEffect(() => setMonth(anchor(week)), [week])
+  const anchor = firstOfMonth(addDays(range.from, Math.floor((range.days - 1) / 2)))
+  const [month, setMonth] = useState(anchor)
+  useEffect(() => setMonth(anchor), [anchor])
+  const end = addDays(range.from, range.days - 1)
+  const shaded = (d: string) => highlight && d >= range.from && d <= end
 
   const shift = (n: number) => {
     const [y, m] = month.split('-').map(Number)
@@ -47,12 +51,19 @@ export default function MiniMonth({
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row[0]} className={mondayOf(row[0]) === week ? 'bg-bg-hover' : ''}>
+            <tr key={row[0]}>
               {row.map((d, i) => {
                 const inMonth = d.slice(0, 7) === month.slice(0, 7)
                 const isToday = d === today
                 return (
-                  <td key={d} className={`p-0 ${i === 0 ? 'rounded-l' : ''} ${i === 6 ? 'rounded-r' : ''}`}>
+                  <td
+                    key={d}
+                    className={`p-0 ${
+                      shaded(d)
+                        ? `bg-bg-hover ${i === 0 || !shaded(row[i - 1]) ? 'rounded-l' : ''} ${i === 6 || !shaded(row[i + 1]) ? 'rounded-r' : ''}`
+                        : ''
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => onPick(d)}

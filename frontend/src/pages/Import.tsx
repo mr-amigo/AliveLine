@@ -1,13 +1,13 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { aiApi, ApiError, assignmentsApi, importApi, planApi } from '../api/client'
+import { ApiError, importApi, planApi } from '../api/client'
 import type { ImportResult } from '../api/types'
 import { useShell } from '../components/shell/AppShell'
 import PageHeader, { NARROW } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, Spinner } from '../components/ui'
+import { AI_CAP, estimateWithAi } from '../lib/aiPass'
 
-const AI_CAP = 30
 const MAX_BYTES = 1_000_000
 
 type Phase =
@@ -18,7 +18,7 @@ type Phase =
   | { kind: 'error'; message: string }
 
 export default function Import() {
-  const { week, reload } = useShell()
+  const { range, reload } = useShell()
   const input = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })
   const [over, setOver] = useState(false)
@@ -44,18 +44,9 @@ export default function Import() {
     if (ids.length) {
       setPhase({ kind: 'estimating', result, done: 0, total: ids.length })
       try {
-        const byId = new Map((await planApi.get(week)).assignments.map((a) => [a.id, a]))
-        for (const [i, id] of ids.entries()) {
-          const a = byId.get(id)
-          if (a) {
-            const e = await aiApi.estimate({ title: a.title, description: a.description, course_name: a.course_name })
-            if (e.source === 'ai') {
-              await assignmentsApi.update(id, { estimate: { ...e, rationale: e.rationale.slice(0, 500) } })
-              estimated++
-            }
-          }
-          setPhase({ kind: 'estimating', result, done: i + 1, total: ids.length })
-        }
+        const byId = new Map((await planApi.get(range.from, range.days)).assignments.map((a) => [a.id, a]))
+        const items = ids.flatMap((id) => byId.get(id) ?? [])
+        estimated = await estimateWithAi(items, (done) => setPhase({ kind: 'estimating', result, done, total: items.length }))
       } catch (err) {
         aiError = err instanceof ApiError ? err.message : 'AI estimates stopped'
       }
@@ -74,11 +65,10 @@ export default function Import() {
 
   return (
     <>
-      <TopBar icon="📥" crumbs={['Import']} />
+      <TopBar icon="upload" crumbs={['Import']} />
       <div className="flex-1 overflow-y-auto">
         <PageHeader
           narrow
-          icon="📥"
           title="Import Moodle calendar"
           description="Bring every Moodle deadline in at once. Importing again later updates dates and keeps your own hours and done marks."
         />

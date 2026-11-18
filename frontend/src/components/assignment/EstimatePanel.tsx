@@ -7,7 +7,7 @@ export type EstimateOrigin = 'you' | 'ai' | 'heuristic'
 const ORIGIN_LABEL: Record<EstimateOrigin, string> = {
   you: 'Your estimate',
   ai: 'AI estimate',
-  heuristic: 'Rough estimate (AI unavailable)',
+  heuristic: 'Rough estimate',
 }
 
 /** Hours for an assignment as a Notion callout: AI value + rationale, manual correction, re-estimate. */
@@ -43,7 +43,7 @@ export default function EstimatePanel({
             {origin ? ORIGIN_LABEL[origin] : 'How long will it take?'}
           </h3>
           <Button variant="secondary" size="sm" onClick={onEstimate} loading={estimating} disabled={!canEstimate} className="bg-transparent">
-            {hours === null ? 'Estimate with AI' : 'Re-estimate'}
+            {hours === null || origin === 'heuristic' ? 'Estimate with AI' : 'Re-estimate'}
           </Button>
         </div>
 

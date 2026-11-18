@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
-import { Icon, IconButton } from '../ui'
+import { Icon, IconButton, type IconName } from '../ui'
 import { useShell } from './AppShell'
 
 /** Notion top bar (44px, no border): [menu on < lg] breadcrumbs · right-side actions. */
-export default function TopBar({ icon, crumbs, right }: { icon: string; crumbs: string[]; right?: ReactNode }) {
+export default function TopBar({ icon, crumbs, right }: { icon: IconName; crumbs: string[]; right?: ReactNode }) {
   const { openMenu } = useShell()
   return (
     <header className="flex h-11 shrink-0 items-center gap-1 px-3">
@@ -15,7 +15,7 @@ export default function TopBar({ icon, crumbs, right }: { icon: string; crumbs: 
           <span key={i} className="flex min-w-0 items-center">
             {i > 0 && <span className="px-0.5 text-text-3">/</span>}
             <span className={`flex h-6 min-w-0 items-center gap-1.5 rounded px-1.5 ${i === crumbs.length - 1 ? '' : 'text-text-2'}`}>
-              {i === 0 && <span aria-hidden="true" className="text-[14px] leading-none">{icon}</span>}
+              {i === 0 && <Icon name={icon} className="shrink-0 text-text-2" />}
               <span className="truncate">{c}</span>
             </span>
           </span>

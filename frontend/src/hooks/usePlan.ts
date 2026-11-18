@@ -11,8 +11,8 @@ export interface PlanState {
   reload: () => Promise<void>
 }
 
-/** Fetches /plan for the 7 days starting at `week` (a Monday). Keeps old data while refetching. */
-export function usePlan(week: string): PlanState {
+/** Fetches /plan for `days` days starting at `from`. Keeps old data while refetching. */
+export function usePlan(from: string, days: number): PlanState {
   const [plan, setPlan] = useState<Plan | null>(null)
   const [loading, setLoading] = useState(true)
   const [slow, setSlow] = useState(false)
@@ -25,7 +25,7 @@ export function usePlan(week: string): PlanState {
     setError(null)
     const timer = window.setTimeout(() => id === latest.current && setSlow(true), 3000)
     try {
-      const data = await planApi.get(week)
+      const data = await planApi.get(from, days)
       if (id === latest.current) setPlan(data)
     } catch (err) {
       if (id === latest.current) setError(err instanceof ApiError ? err.message : 'Could not load your plan')
@@ -36,7 +36,7 @@ export function usePlan(week: string): PlanState {
         setSlow(false)
       }
     }
-  }, [week])
+  }, [from, days])
 
   useEffect(() => {
     void load()

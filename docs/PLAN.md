@@ -182,15 +182,15 @@ Routes:
 |---|---|---|
 | `/` | Landing | hero + static WeekGrid preview with demo data, 3 steps, early-access form, CTA. Redirect to /app if signed in |
 | `/signup`, `/signin` | Auth | centered column, inline validation, show API `detail` |
-| `/app` | Planner | App shell (Sidebar: MiniMonth, Today list, Courses; TopBar; Week/List view). `?week=YYYY-MM-DD`, `?view=list`. Drawer for assignment details (`?a=:id`, `?a=new`) |
+| `/app` | Planner | App shell (Sidebar: MiniMonth, Today list, Courses; TopBar with range picker; Day / 3 days / Week / Month / List). `?view=day\|3day\|week\|month\|list&date=YYYY-MM-DD`. Drawer for assignment details (`?a=:id`, `?a=new`) |
 | `/app/import` | Import | in shell; dropzone, Moodle export steps, result + AI pass over `created_ids` |
 | `/app/settings` | Settings | in shell; name, daily capacity, buffer days |
 
 Structure: `api/client.ts` (fetch wrapper, `credentials:'include'`, throws `ApiError(detail)`), `api/types.ts` (mirrors §7),
 `auth/AuthContext.tsx`, `auth/RequireAuth.tsx`,
-`components/shell/` (AppShell, Sidebar, MiniMonth, TopBar), `components/plan/` (WeekGrid, DayColumn, WorkBlock, DeadlineChip, ListView, TodayList, StatusDot),
+`components/shell/` (AppShell, Sidebar, MiniMonth, TopBar), `components/plan/` (WeekGrid, MonthGrid, DayColumn, WorkBlock, DeadlineChip, ListView, TodayList, StatusDot),
 `components/assignment/` (AssignmentDrawer, EstimatePanel, HoursStepper), `components/ui/` (Button, Input, Field, Kbd, Toast, Spinner, Skeleton),
-`hooks/` (usePlan(week), useShortcuts), `lib/dates.ts` (week math in Europe/Kyiv, `Intl.DateTimeFormat('en-GB')`, relative "in 3 days"), `pages/` one file per route.
+`hooks/` (usePlan(from, days), useShortcuts), `lib/aiPass.ts` (AI estimate pass), `lib/dates.ts` (week math in Europe/Kyiv, `Intl.DateTimeFormat('en-GB')`, relative "in 3 days"), `pages/` one file per route.
 State: URL params (week, view, open drawer) + refetch `/plan` after each mutation (no state lib).
 
 ## 9. Infra & deployment
@@ -285,9 +285,9 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] drawer: Steps section (AI suggest, edit title/hours, reorder, check off); calendar blocks show step title
 
 ### Phase 11 — Calendar ranges + UI fixes
-- [ ] views Day / 3 days / Week / Month (+ List); TopBar range picker; URL `?view=&date=`; Month = deadlines + daily load bars; `/plan?from&days` already supports it
-- [ ] less crowded blocks: two-line titles, min block height, deadline chips one line
-- [ ] remove all emoji from UI (DESIGN §9); estimate label: `heuristic` → "Rough estimate" + "Estimate with AI" (it is not an outage: AI logs show 0 errors; items imported before the AI pass are heuristic) + "Estimate all with AI" for heuristic items
+- [x] views Day / 3 days / Week / Month (+ List); TopBar range picker; URL `?view=&date=`; Month = deadlines + daily load bars; `/plan?from&days` already supports it
+- [x] less crowded blocks: two-line titles, min block height, deadline chips one line
+- [x] remove all emoji from UI (DESIGN §9); estimate label: `heuristic` → "Rough estimate" + "Estimate with AI" (it is not an outage: AI logs show 0 errors; items imported before the AI pass are heuristic) + "Estimate all with AI" for heuristic items
 
 ### Phase 12 — Launch checklist
 - [ ] per-route `<title>` + meta description (small `usePageMeta`), OG image (1200×630 PNG, compressed) + OG/Twitter tags, favicon set (svg + png 32/180), `robots.txt` (disallow /app), `sitemap.xml` (/, /signin, /signup, /privacy, /terms)
@@ -320,3 +320,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 9 done: planner v2 (soft session cap, per-weekday hours incl. days off, interleave toggle, `at_risk` + `shortfall_hours` instead of `unscheduled_hours`, urgent-first within a day); one EDF pass kept (skipping unfinishable items would starve today's exam); `add_missing_columns` forward-only migration run by `migrate`/startup; Settings "Planning" section; one "won't be finished in time" callout replaces per-card unscheduled. 65 tests green.
 - 2026-11-18 — Phase 9 follow-up: `min_session_hours` (default 1.5) — no crumbs; three sweeps (cap+min → min → forced); Settings "Shortest session". 66 tests green.
 - 2026-11-18 — Phase 10 done: `Step` model (cascade), `PUT /assignments/{id}/steps` (one replace call covers accept/edit/reorder/check off/remove), `POST /api/ai/steps` (OpenAI strict JSON, 2–4 steps or none; no heuristic split), planner step precedence with shared session cap, `suggest_steps` setting; drawer Steps section (auto-suggest once for AI-estimated ≥ 4 h tasks, Dismiss remembered in localStorage), blocks show the step on the hours line. 78 tests green; checked in headless Chromium.
+- 2026-11-18 — Phase 11 done: views Day / 3 days / Week / Month / List (`?view=&date=`, last calendar range remembered; TopBar range picker; Month = load bars + deadlines, fetches only its own days since API max is 31); WorkBlock 32 px/h, min 40, two-line titles; chips one line (+ due time in Day/3 days); emoji removed (TopBar line icons, PageHeader without icon); "Rough estimate" + "Estimate with AI" in the drawer, "Estimate all with AI" callout (`lib/aiPass.ts`, shared with Import). Build ok; checked in headless Chromium (5 views, 1440 + 390 px, no overflow).

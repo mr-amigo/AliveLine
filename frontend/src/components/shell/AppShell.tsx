@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useOutletContext, useSearchParams } from 'react-router-dom'
 import { usePlan, type PlanState } from '../../hooks/usePlan'
-import { isValidDate, mondayOf, todayKyiv } from '../../lib/dates'
+import { isValidDate, isView, todayKyiv, viewRange, type CalView, type View } from '../../lib/dates'
 import AssignmentDrawer from '../assignment/AssignmentDrawer'
 import Sidebar from './Sidebar'
 
 export interface ShellContext extends PlanState {
   today: string
-  week: string
-  setWeek: (monday: string) => void
+  view: View
+  /** Anchor date of the visible range ('YYYY-MM-DD'). */
+  date: string
+  range: { from: string; days: number }
+  /** Last calendar range used (for the Calendar tab and mini-month picks). */
+  calView: CalView
+  /** Switch view; optional `date` moves the range in the same URL update. */
+  setView: (v: View, date?: string) => void
+  setDate: (date: string) => void
   selectedId: number | null
   openAssignment: (id: number | 'new') => void
   hidden: Set<string>
@@ -18,6 +25,17 @@ export interface ShellContext extends PlanState {
 export const useShell = () => useOutletContext<ShellContext>()
 
 const HIDDEN_KEY = 'al_hidden_courses'
+const CAL_VIEW_KEY = 'al_cal_view'
+const isMobile = () => window.matchMedia('(max-width: 767px)').matches
+
+function loadCalView(): CalView {
+  try {
+    const v = localStorage.getItem(CAL_VIEW_KEY)
+    return isView(v) && v !== 'list' ? v : 'week'
+  } catch {
+    return 'week'
+  }
+}
 
 function loadHidden(): Set<string> {
   try {
@@ -27,13 +45,17 @@ function loadHidden(): Set<string> {
   }
 }
 
-/** `/app/*` layout: sidebar + page + assignment drawer. State lives in the URL (`week`, `view`, `a`). */
+/** `/app/*` layout: sidebar + page + assignment drawer. State lives in the URL (`view`, `date`, `a`). */
 export default function AppShell() {
   const [params, setParams] = useSearchParams()
   const clientToday = todayKyiv()
-  const weekParam = params.get('week')
-  const week = isValidDate(weekParam) ? mondayOf(weekParam) : mondayOf(clientToday)
-  const planState = usePlan(week)
+  const [calView, setCalView] = useState(loadCalView)
+  const viewParam = params.get('view')
+  const view: View = isView(viewParam) ? viewParam : isMobile() ? 'list' : calView
+  const dateParam = params.get('date')
+  const date = isValidDate(dateParam) ? dateParam : clientToday
+  const range = viewRange(view, date)
+  const planState = usePlan(range.from, range.days)
   const { plan, reload } = planState
   const today = plan?.today ?? clientToday
 
@@ -60,7 +82,29 @@ export default function AppShell() {
     [setParams],
   )
 
-  const setWeek = useCallback((monday: string) => setParam('week', monday === mondayOf(today) ? null : monday), [setParam, today])
+  const setDate = useCallback((d: string) => setParam('date', d === today ? null : d), [setParam, today])
+  const setView = useCallback(
+    (v: View, d?: string) => {
+      if (v !== 'list') {
+        setCalView(v)
+        try {
+          localStorage.setItem(CAL_VIEW_KEY, v)
+        } catch {
+          /* private mode: just don't remember */
+        }
+      }
+      setParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('view', v)
+        if (d !== undefined) {
+          if (d === today) next.delete('date')
+          else next.set('date', d)
+        }
+        return next
+      })
+    },
+    [setParams, today],
+  )
   const openAssignment = useCallback((id: number | 'new') => setParam('a', String(id)), [setParam])
   const closeDrawer = useCallback(() => setParam('a', null), [setParam])
 
@@ -78,12 +122,16 @@ export default function AppShell() {
     [plan],
   )
 
-  const sidebarProps = { plan, today, week, hidden, onToggleCourse: toggleCourse, onSelect: openAssignment }
+  const sidebarProps = { plan, today, view, range, calView, hidden, onToggleCourse: toggleCourse, onSelect: openAssignment }
   const ctx: ShellContext = {
     ...planState,
     today,
-    week,
-    setWeek,
+    view,
+    date,
+    range,
+    calView,
+    setView,
+    setDate,
     selectedId: typeof drawerId === 'number' ? drawerId : null,
     openAssignment,
     hidden,
