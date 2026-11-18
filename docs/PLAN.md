@@ -156,7 +156,7 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 | POST | /ai/estimate | ✓ (JWT only) | `{title, description?, course_name?}` → `{hours, rationale, source}` (AI Lambda) |
 | POST | /import/ics | ✓ | multipart `file` (≤ 1 MB) → `{created, updated, skipped, created_ids}` |
 
-`AssignmentOut = {id, title, description, course_name, deadline, source, ai_hours, ai_rationale, estimate_source, user_hours, effective_hours, done, window:{start_date, target_finish, status, unscheduled_hours} | null}`.
+`AssignmentOut = {id, title, description, course_name, deadline, source, ai_hours, ai_rationale, estimate_source, user_hours, effective_hours, done, window:{start_date, target_finish, status, unscheduled_hours}}` (always present; done → status `done`, dates = deadline).
 Every mutation endpoint returns windows recomputed for the whole plan (simplest: frontend refetches `/plan` after mutations).
 Ownership: every assignment query filters by `user_id`; foreign id → 404. **Never 403** (CloudFront maps 403 → SPA).
 
@@ -225,10 +225,10 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: live HTTPS URL, sign up/in works.
 
 ### Phase 4 — Assignments + planner (core domain)
-- [ ] models Course, Assignment (incl. ai_hours, ai_rationale, estimate_source); domain/planner.py; tests/test_planner.py (cases in §4)
-- [ ] domain/estimation/{base,heuristic}.py (server default estimate); services/assignment_service.py, services/plan_service.py; api/assignments.py (accepts optional `estimate`), GET /plan with `from`/`days` range (§7)
-- [ ] tests/test_assignments.py (CRUD, ownership 404, client estimate vs heuristic, plan statuses)
-- [ ] `make aws-push aws-backend aws-migrate`; smoke `/api/plan` on live
+- [x] models Course, Assignment (incl. ai_hours, ai_rationale, estimate_source); domain/planner.py; tests/test_planner.py (cases in §4)
+- [x] domain/estimation/{base,heuristic}.py (server default estimate); services/assignment_service.py, services/plan_service.py; api/assignments.py (accepts optional `estimate`), GET /plan with `from`/`days` range (§7)
+- [x] tests/test_assignments.py (CRUD, ownership 404, client estimate vs heuristic, plan statuses)
+- [x] `make aws-push aws-backend aws-migrate`; smoke `/api/plan` on live
 - DoD: tests green; live API creates tables + returns plan.
 
 ### Phase 5 — AI estimation (Claude on Bedrock)
@@ -267,3 +267,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Plan revised for AWS: AI via separate Bedrock Lambda (`/api/ai/*`, outside VPC, $0 idle) instead of in-backend Claude; client passes estimate to backend; ops via Lambda actions; shared account rules (don't touch onetwothree).
 - 2026-11-18 — Phase 3 done: live at https://d2b7fp4wgl1dok.cloudfront.net (us-east-1, stacks aliveline-{backend-ecr,backend,frontend}). Smoke: health, SPA fallback, API 404 passes through, signup (Secure cookie), me, signout→401, signin. First deploy ~17 min.
 - 2026-11-18 — Design direction: Notion-Calendar-style (own brand) → docs/DESIGN.md; §8 now routes/structure only; /plan returns a week range for WeekGrid; phase 7 rewritten.
+- 2026-11-18 — Phase 4 done: Course/Assignment models, WorkWindowPlanner, heuristic estimator (server default; client may pass `estimate`), CRUD + GET /plan?from&days; 33 tests green; deployed (aws-push/backend/migrate) and smoke-tested on live Postgres. Added tzdata. `window` is never null.
