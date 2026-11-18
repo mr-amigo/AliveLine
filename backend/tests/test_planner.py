@@ -26,11 +26,22 @@ def test_overlapping_items_push_the_earlier_one_earlier():
     assert starts == [d(4), d(5)]
 
 
-def test_later_deadline_takes_late_days_first():
+def test_earlier_deadline_keeps_its_day_and_later_item_works_around_it():
     items = [PlanItem(1, d(4), 3), PlanItem(2, d(5), 6)]
     plan = planner.plan(items, capacity=3, buffer_days=0, today=TODAY)
-    assert plan.windows[2].start_date == d(4)  # days 5 and 4
-    assert plan.windows[1].start_date == d(3)  # pushed before day 4
+    assert plan.windows[1].start_date == d(4)  # its own target day
+    assert plan.windows[2].start_date == d(3)  # days 5 and 3
+    assert all(w.unscheduled_hours == 0 for w in plan.windows.values())
+
+
+def test_overload_gives_today_to_the_most_urgent_item():
+    urgent = PlanItem(1, d(0), 7)  # due today, can't fit anyway
+    far = [PlanItem(10 + i, d(8), 3) for i in range(10)]  # 30 h due in 8 days
+    plan = planner.plan([urgent, *far], capacity=3, buffer_days=1, today=TODAY)
+    assert plan.on(TODAY) == [(1, 3)]
+    assert plan.windows[1].unscheduled_hours == 4 and plan.windows[1].status == Status.CRITICAL
+    overflow = sum(plan.windows[i].unscheduled_hours for i in range(10, 20))
+    assert overflow == 30 - 3 * 7  # days 1..7 left for the far items
 
 
 def test_insufficient_capacity_is_critical_with_unscheduled_hours():

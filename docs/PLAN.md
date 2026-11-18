@@ -110,7 +110,7 @@ Input: `items: list[PlanItem(id, deadline: date, hours: float, done: bool)]`, `c
 
 1. Open items only (`done=False`); done → status `DONE`, no window.
 2. `target_finish = max(today, deadline - buffer_days)`; if `deadline < today` → target_finish = deadline (overdue).
-3. Sort open items by `target_finish` **descending** (latest first) — backward "as-late-as-possible" scheduling (mirror of EDF, optimal for feasibility).
+3. Sort open items by `target_finish` **ascending** (EDF) and place each one **as late as possible** (ALAP) before its target. Same feasibility as any optimal order; under overload the urgent items keep the days near their targets (incl. today) and the overflow lands on the latest deadlines. (Latest-first was used first; a real Moodle export showed it giving today to far-off homework while today's exam was short of hours.)
 4. `free[day] = capacity` for every day in `[today, max target_finish]`.
 5. For each item: walk days from `target_finish` back to `today`, take `min(free[day], remaining)`, record allocation. Leftover → `unscheduled_hours`.
 6. `start_date` = earliest allocated day (or `today` if none/overdue).

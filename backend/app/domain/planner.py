@@ -47,11 +47,12 @@ def round_up_half(hours: float) -> float:
 
 
 class WorkWindowPlanner:
-    """Allocates each item's hours backward from its target finish, latest target first.
+    """Allocates each item's hours as late as possible before its target finish, earliest target first.
 
-    Processing the latest target first and filling days as late as possible (mirror of EDF) means
-    earlier deadlines get pushed earlier only when days are already taken, which is optimal for
-    "does everything fit before its deadline".
+    Feasibility: the schedule fits whenever, for every day, the hours of items targeted up to that day fit
+    in the capacity up to it (same as any optimal order). Overload: earliest-first means the urgent items
+    claim the days next to their targets (including today), and the hours that can't fit land on the
+    items with the latest deadlines, so "today" always goes to the most urgent work.
     """
 
     def plan(self, items: list[PlanItem], capacity: float, buffer_days: int, today: date) -> Plan:
@@ -71,7 +72,7 @@ class WorkWindowPlanner:
         last_day = max(target for _, target in open_items)
         free = {today + timedelta(days=i): capacity for i in range((last_day - today).days + 1)}
 
-        for item, target in sorted(open_items, key=lambda it: (it[1], it[0].deadline, it[0].id), reverse=True):
+        for item, target in sorted(open_items, key=lambda it: (it[1], it[0].deadline, it[0].id)):
             remaining = round_up_half(item.hours)
             allocated: list[date] = []
             day = target
