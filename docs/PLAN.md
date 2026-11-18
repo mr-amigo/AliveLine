@@ -207,9 +207,9 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: `pytest -q` green; manual curl signup/me works.
 
 ### Phase 2 — Frontend shell + auth pages  (secures B, part 2)
-- [ ] Vite React TS scaffold (write files directly, don't run interactive create), Tailwind v4, router, proxy
-- [ ] api/client.ts, api/types.ts, AuthContext, RequireAuth, Layout/Navbar, basic UI primitives
-- [ ] pages: Landing (simple version + waitlist form), SignUp, SignIn, Dashboard placeholder, Settings
+- [x] Vite React TS scaffold (write files directly, don't run interactive create), Tailwind v4, router, proxy
+- [x] api/client.ts, api/types.ts, AuthContext, RequireAuth, Layout/Navbar, basic UI primitives
+- [x] pages: Landing (simple version + waitlist form), SignUp, SignIn, Dashboard placeholder, Settings
 - DoD: `npm run build` ok; locally sign up → land on /app → refresh keeps session → sign out.
 
 ### Phase 3 — Infra + deploy + README  (secures A & B)
@@ -249,3 +249,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 ## Progress log
 - 2026-11-18 — Phase 0: plan written (CLAUDE.md, docs/PLAN.md, docs/ONE_PAGER.md).
 - 2026-11-18 — Phase 1 done: FastAPI core, cookie-JWT auth, settings, waitlist, LoginEvent; 8 tests green. Added `schemas/common.UtcDatetime` (SQLite drops tz) — use it for all datetime outputs.
+- 2026-11-18 — Phase 2 done: Vite/React/TS/Tailwind v4 shell; AuthContext, RequireAuth, Landing (+waitlist, preview card), SignIn/SignUp (shared AuthForm), Settings, Dashboard placeholder; ui.tsx primitives (Button, Field, Input, Alert, Card, Spinner). Build ok; SPA fallback verified via backend/static.
