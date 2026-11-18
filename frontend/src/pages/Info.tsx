@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import Pricing from '../components/Pricing'
 import SiteLayout, { CONTACT_EMAIL, TextPage } from '../components/SiteLayout'
 import { Button } from '../components/ui'
 import { usePageMeta } from '../hooks/usePageMeta'
@@ -21,7 +22,14 @@ export function Privacy() {
           <li>Planner data: assignments you add or import (title, description, course, deadline, hours, steps) and your planning settings.</li>
           <li>Sign-in times, to see how often the app is used.</li>
           <li>Early-access list: the email you leave on the home page.</li>
+          <li>Subscription: your plan, its status and Paddle’s customer and subscription ids. We never see or store card details.</li>
         </ul>
+        <h2>Payments</h2>
+        <p>
+          Pro subscriptions are sold by Paddle.com, our merchant of record. Paddle collects your payment details, billing
+          address and taxes under its own <a href="https://www.paddle.com/legal/privacy">privacy policy</a> and tells us only
+          whether your subscription is active.
+        </p>
         <h2>AI estimates</h2>
         <p>
           When you ask for an estimate or for steps, the assignment’s title, description and course name are sent to OpenAI
@@ -61,6 +69,16 @@ export function Terms() {
         <ul>
           <li>Keep your password private; you are responsible for what happens in your account.</li>
           <li>Add only content you have the right to use. Don’t try to break, overload or misuse the service.</li>
+        </ul>
+        <h2>Pro subscription</h2>
+        <ul>
+          <li>
+            Pro is sold by our online reseller Paddle.com, the merchant of record for all orders. Paddle handles payment,
+            taxes, invoices and customer service for orders under its <a href="https://www.paddle.com/legal/checkout-buyer-terms">buyer terms</a>.
+          </li>
+          <li>Pro renews automatically every month or year until you cancel. Cancel any time in Settings → Plan; Pro stays on until the end of the paid period.</li>
+          <li>Prices are in US dollars; Paddle may add local taxes. We’ll email you at least 30 days before any price change.</li>
+          <li>Refunds: see the <Link to="/refunds">refund policy</Link>.</li>
         </ul>
         <h2>Availability</h2>
         <p>
@@ -103,6 +121,44 @@ export function Thanks() {
           <Link to="/signup"><Button>Create free account</Button></Link>
           <Link to="/"><Button variant="secondary">Back to home</Button></Link>
         </div>
+      </TextPage>
+    </SiteLayout>
+  )
+}
+
+export function PricingPage() {
+  usePageMeta('Pricing', 'AliveLine is free for good. Pro adds AI steps, unlimited re-estimates and bulk AI estimates for $3 a month.')
+  return (
+    <SiteLayout>
+      <main className="mx-auto w-full max-w-4xl px-6 pb-20 pt-8 md:pt-12">
+        <h1 className="text-h1 font-bold tracking-[-0.01em] md:text-page">Pricing</h1>
+        <p className="mt-1 text-section text-text-2">The planner is free for good. Pro is for students who lean on AI every week.</p>
+        <div className="mt-8"><Pricing /></div>
+      </main>
+    </SiteLayout>
+  )
+}
+
+export function Refunds() {
+  usePageMeta('Refund policy', 'Refunds for AliveLine Pro within 14 days of payment.')
+  return (
+    <SiteLayout>
+      <TextPage title="Refund policy" updated={UPDATED}>
+        <p>
+          If Pro isn’t right for you, ask for a refund within <strong>14 days</strong> of any payment (the first one or a
+          renewal) and you get the full amount back. No reason needed.
+        </p>
+        <h2>How to ask</h2>
+        <ul>
+          <li>Email <Mail /> from your account email, or</li>
+          <li>reply to your Paddle receipt, or use <a href="https://paddle.net">paddle.net</a> to find your order.</li>
+        </ul>
+        <p>
+          Paddle, our merchant of record, processes the refund to your original payment method, usually within 5–10 working
+          days. After a refund your account returns to Free; your assignments and plan stay.
+        </p>
+        <h2>Cancelling</h2>
+        <p>Cancel any time in Settings → Plan. You keep Pro until the end of the period you paid for, and you won’t be charged again.</p>
       </TextPage>
     </SiteLayout>
   )

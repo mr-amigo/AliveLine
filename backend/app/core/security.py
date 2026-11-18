@@ -37,3 +37,16 @@ def decode_access_token(token: str) -> int | None:
         return int(payload["sub"])
     except (jwt.PyJWTError, KeyError, ValueError):
         return None
+
+
+def create_claim(user_id: int, audience: str, minutes: int, **extra: str) -> str:
+    """Short-lived signed permission the backend hands out for the AI Lambda (no DB there)."""
+    payload = {"sub": str(user_id), "aud": audience, "exp": utcnow() + timedelta(minutes=minutes), **extra}
+    return jwt.encode(payload, get_settings().secret_key, algorithm=_ALGORITHM)
+
+
+def decode_claim(token: str, audience: str) -> dict[str, str] | None:
+    try:
+        return jwt.decode(token, get_settings().secret_key, algorithms=[_ALGORITHM], audience=audience)
+    except jwt.PyJWTError:
+        return None

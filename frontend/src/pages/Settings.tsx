@@ -4,6 +4,7 @@ import { ApiError, settingsApi } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useShell } from '../components/shell/AppShell'
 import PageHeader, { NARROW } from '../components/shell/PageHeader'
+import PlanSection from '../components/PlanSection'
 import TopBar from '../components/shell/TopBar'
 import { Button, Input, Stepper, useToast } from '../components/ui'
 import { hoursLabel } from '../lib/dates'
@@ -35,6 +36,7 @@ export default function Settings() {
   const [minSession, setMinSession] = useState(user?.min_session_hours ?? 1.5)
   const [interleave, setInterleave] = useState(user?.interleave ?? true)
   const [suggestSteps, setSuggestSteps] = useState(user?.suggest_steps ?? true)
+  const [showAtRisk, setShowAtRisk] = useState(user?.show_at_risk ?? true)
   const [busy, setBusy] = useState(false)
 
   const dirty =
@@ -46,7 +48,8 @@ export default function Settings() {
       session !== user.max_session_hours ||
       minSession !== user.min_session_hours ||
       interleave !== user.interleave ||
-      suggestSteps !== user.suggest_steps)
+      suggestSteps !== user.suggest_steps ||
+      showAtRisk !== user.show_at_risk)
   const setDay = (i: number, v: number) => setWeekdays((w) => (w ? w.map((h, j) => (j === i ? v : h)) : w))
 
   async function submit(e: FormEvent) {
@@ -65,6 +68,7 @@ export default function Settings() {
           min_session_hours: minSession,
           interleave,
           suggest_steps: suggestSteps,
+          show_at_risk: showAtRisk,
         }),
       )
       await reload()
@@ -80,8 +84,8 @@ export default function Settings() {
     <>
       <TopBar icon="settings" crumbs={['Settings']} />
       <div className="flex-1 overflow-y-auto">
-        <PageHeader narrow title="Settings" description="These numbers decide when AliveLine tells you to start." />
-        <form onSubmit={submit} className={`${NARROW} pb-24 pt-6`}>
+        <PageHeader narrow icon="settings" title="Settings" description="These numbers decide when AliveLine tells you to start." />
+        <form onSubmit={submit} className={`${NARROW} pt-6`}>
           <h2 className="border-b border-line pb-3 text-section font-medium">Profile</h2>
 
           <Row label="Name" hint={user?.email ?? ''} htmlFor="name">
@@ -164,6 +168,16 @@ export default function Settings() {
             />
           </Row>
 
+          <Row label="Warn about late work" hint="Show how many assignments won’t fit before their deadline, above the calendar." htmlFor="show-at-risk">
+            <input
+              id="show-at-risk"
+              type="checkbox"
+              checked={showAtRisk}
+              onChange={(e) => setShowAtRisk(e.target.checked)}
+              className="h-4 w-4 accent-accent"
+            />
+          </Row>
+
           <Row label="Safety buffer" hint="Aim to finish this many days before each real deadline.">
             <Stepper
               label="buffer days"
@@ -180,6 +194,9 @@ export default function Settings() {
             <Button type="submit" loading={busy} disabled={!dirty}>Save changes</Button>
           </div>
         </form>
+        <div className={`${NARROW} pb-24`}>
+          <PlanSection />
+        </div>
       </div>
     </>
   )

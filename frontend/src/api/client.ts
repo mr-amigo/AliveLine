@@ -2,6 +2,9 @@ import type {
   Assignment,
   AssignmentCreate,
   AssignmentUpdate,
+  Billing,
+  ClaimFeature,
+  ClaimOut,
   Estimate,
   EstimateRequest,
   ImportResult,
@@ -44,12 +47,12 @@ async function errorMessage(res: Response): Promise<string> {
   return res.statusText || 'Something went wrong'
 }
 
-async function request<T>(method: Method, path: string, body?: unknown): Promise<T> {
-  const init: RequestInit = { method, credentials: 'include' }
+async function request<T>(method: Method, path: string, body?: unknown, headers: Record<string, string> = {}): Promise<T> {
+  const init: RequestInit = { method, credentials: 'include', headers }
   if (body instanceof FormData) {
     init.body = body
   } else if (body !== undefined) {
-    init.headers = { 'Content-Type': 'application/json' }
+    init.headers = { ...headers, 'Content-Type': 'application/json' }
     init.body = JSON.stringify(body)
   }
 
@@ -67,7 +70,7 @@ async function request<T>(method: Method, path: string, body?: unknown): Promise
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => request<T>('POST', path, body, headers),
   patch: <T>(path: string, body?: unknown) => request<T>('PATCH', path, body),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: (path: string) => request<void>('DELETE', path),
@@ -99,9 +102,18 @@ export const assignmentsApi = {
   setSteps: (id: number, steps: StepDraft[]) => api.put<Assignment>(`/assignments/${id}/steps`, { steps }),
 }
 
+/** AI Lambda calls need a fresh claim token from billingApi.claim (see lib/ai.ts). */
 export const aiApi = {
-  estimate: (data: EstimateRequest) => api.post<Estimate>('/ai/estimate', data),
-  steps: (data: StepsRequest) => api.post<{ steps: StepDraft[] }>('/ai/steps', data),
+  estimate: (data: EstimateRequest, claim: string) => api.post<Estimate>('/ai/estimate', data, { 'X-AI-Claim': claim }),
+  steps: (data: StepsRequest, claim: string) => api.post<{ steps: StepDraft[] }>('/ai/steps', data, { 'X-AI-Claim': claim }),
+  portal: (claim: string) => api.post<{ url: string }>('/ai/portal', undefined, { 'X-Portal-Claim': claim }),
+}
+
+export const billingApi = {
+  get: () => api.get<Billing>('/billing'),
+  claim: (feature: ClaimFeature, opts: { assignment_id?: number; count?: number } = {}) =>
+    api.post<ClaimOut>('/billing/claim', { feature, ...opts }),
+  portalClaim: () => api.post<{ token: string }>('/billing/portal-claim'),
 }
 
 export const importApi = {

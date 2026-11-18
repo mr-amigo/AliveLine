@@ -3,7 +3,7 @@ import { useAuth } from './auth/AuthContext'
 import RequireAuth from './auth/RequireAuth'
 import AppShell from './components/shell/AppShell'
 import Import from './pages/Import'
-import { Contact, Privacy, Terms, Thanks } from './pages/Info'
+import { Contact, PricingPage, Privacy, Refunds, Terms, Thanks } from './pages/Info'
 import Landing from './pages/Landing'
 import NotFound from './pages/NotFound'
 import Planner from './pages/Planner'
@@ -24,6 +24,8 @@ export default function App() {
       <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
       <Route path="/signin" element={<PublicOnly><SignIn /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><SignUp /></PublicOnly>} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/refunds" element={<Refunds />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       <Route path="/contact" element={<Contact />} />

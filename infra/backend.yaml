@@ -59,6 +59,28 @@ Parameters:
   DbName:
     Type: String
     Default: aliveline
+  PaddleEnv:
+    Type: String
+    Default: sandbox
+    AllowedValues: [sandbox, production]
+  PaddleClientToken:
+    Type: String
+    Default: ""
+    Description: Paddle.js client-side token (public). Empty → checkout hidden.
+  PaddleWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+  PaddlePriceMonthly:
+    Type: String
+    Default: ""
+  PaddlePriceYearly:
+    Type: String
+    Default: ""
+  BillingTesters:
+    Type: String
+    Default: ""
+    Description: Comma-separated emails that see checkout before PaddleEnv=production.
   DbUsername:
     Type: String
     Default: aliveline
@@ -256,6 +278,12 @@ Resources:
             - { Host: !GetAtt DbCluster.Endpoint.Address, Port: !GetAtt DbCluster.Endpoint.Port }
           # Close connections after each request: Aurora pauses only when none are open.
           DB_NULL_POOL: "true"
+          PADDLE_ENV: !Ref PaddleEnv
+          PADDLE_CLIENT_TOKEN: !Ref PaddleClientToken
+          PADDLE_WEBHOOK_SECRET: !Ref PaddleWebhookSecret
+          PADDLE_PRICE_MONTHLY: !Ref PaddlePriceMonthly
+          PADDLE_PRICE_YEARLY: !Ref PaddlePriceYearly
+          BILLING_TESTERS: !Ref BillingTesters
       Tags:
         - { Key: PROJECT_NAME, Value: !Ref ProjectName }
 

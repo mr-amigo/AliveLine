@@ -7,8 +7,10 @@ import { Button } from './ui'
 export const CONTACT_EMAIL = 'mr.amigo98797@gmail.com'
 
 const footerLinks = [
+  { to: '/pricing', label: 'Pricing' },
   { to: '/privacy', label: 'Privacy' },
   { to: '/terms', label: 'Terms' },
+  { to: '/refunds', label: 'Refunds' },
   { to: '/contact', label: 'Contact' },
 ]
 

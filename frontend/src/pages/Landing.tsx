@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, waitlistApi } from '../api/client'
 import type { Assignment, Day, DayItem, Status } from '../api/types'
+import Pricing from '../components/Pricing'
 import SiteLayout from '../components/SiteLayout'
 import WeekGrid from '../components/plan/WeekGrid'
 import { Button, Input } from '../components/ui'
@@ -149,6 +150,12 @@ export default function Landing() {
               </li>
             ))}
           </ol>
+        </section>
+
+        <section id="pricing" className="border-t border-line py-16">
+          <h2 className="text-h1 font-bold">Pricing</h2>
+          <p className="mt-1 text-body text-text-2">The planner is free for good. Pro is for students who lean on AI every week.</p>
+          <div className="mt-6"><Pricing /></div>
         </section>
 
         <section className="grid gap-6 border-t border-line py-16 md:grid-cols-2 md:items-center">

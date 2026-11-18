@@ -73,12 +73,15 @@ def test_splitter_skips_small_tasks_and_falls_back_to_no_steps():
 
 def test_ai_steps_endpoint(client, signed_in):
     app.dependency_overrides[get_step_splitter] = lambda: OpenAIStepSplitter(FakeOpenAI(json.dumps({"steps": STEPS})), "m")
+    def claim() -> dict[str, str]:
+        return {"X-AI-Claim": signed_in.post("/api/billing/claim", json={"feature": "steps"}).json()["token"]}
+
     try:
-        r = signed_in.post("/api/ai/steps", json={"title": "Project", "hours": 6.5})
+        r = signed_in.post("/api/ai/steps", json={"title": "Project", "hours": 6.5}, headers=claim())
     finally:
         app.dependency_overrides.pop(get_step_splitter)
     assert r.status_code == 200 and r.json()["steps"][0] == {"title": "Research", "hours": 2.0}
-    assert signed_in.post("/api/ai/steps", json={"title": "Project", "hours": 6}).json() == {"steps": []}  # no LLM
+    assert signed_in.post("/api/ai/steps", json={"title": "Project", "hours": 6}, headers=claim()).json() == {"steps": []}  # no LLM
     signed_in.post("/api/auth/signout")
     assert client.post("/api/ai/steps", json={"title": "Project", "hours": 6}).status_code == 401
 

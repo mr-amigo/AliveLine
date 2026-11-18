@@ -71,6 +71,7 @@ export default function Import() {
       <div className="flex-1 overflow-y-auto">
         <PageHeader
           narrow
+          icon="upload"
           title="Import Moodle calendar"
           description="Bring every Moodle deadline in at once. Importing again later updates dates and keeps your own hours and done marks."
         />

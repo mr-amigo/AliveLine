@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
-import { aiApi, ApiError, assignmentsApi } from '../../api/client'
+import { ApiError, assignmentsApi } from '../../api/client'
+import { aiEstimate } from '../../lib/ai'
 import type { Assignment, AssignmentUpdate, Estimate } from '../../api/types'
 import { addDays, hoursLabel, kyivDate, kyivTime, kyivToUtcIso, mediumDay, relative, shortDay } from '../../lib/dates'
 import { STATUS } from '../../lib/status'
@@ -79,7 +80,7 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
 
   async function requestEstimate(): Promise<Estimate | null> {
     try {
-      const e = await aiApi.estimate({ title: title.trim(), description, course_name: course.trim() || null })
+      const e = await aiEstimate({ title: title.trim(), description, course_name: course.trim() || null }, a?.id)
       return { ...e, rationale: e.rationale.slice(0, 500) }
     } catch (err) {
       toast(`Estimate failed: ${errText(err)}`, 'error')
@@ -269,6 +270,7 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
               onHours={setUserHours}
               onEstimate={reestimate}
               onUseAi={() => setUserHours(null)}
+              reestimate={a?.estimate_source === 'ai'}
             />
             {a && dirty && <p className="text-meta text-text-3">Save to update the plan.</p>}
           </div>

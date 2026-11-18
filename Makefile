@@ -71,7 +71,10 @@ aws-backend: ## Create/update VPC + Aurora + Lambda with image :$(TAG) (first ru
 	aws cloudformation deploy --stack-name $(BACKEND_STACK) --template-file infra/backend.yaml \
 	  --capabilities CAPABILITY_IAM --tags $(TAGS) --no-fail-on-empty-changeset \
 	  --parameter-overrides ProjectName=$(PROJECT) ImageUri=$$uri:$(TAG) Architecture=$(LAMBDA_ARCH) \
-	    BudgetAlertEmail=$(BUDGET_EMAIL)
+	    BudgetAlertEmail=$(BUDGET_EMAIL) PaddleEnv=$(or $(PADDLE_ENV),sandbox) \
+	    "PaddleClientToken=$(PADDLE_CLIENT_TOKEN)" "PaddleWebhookSecret=$(PADDLE_WEBHOOK_SECRET)" \
+	    "PaddlePriceMonthly=$(PADDLE_PRICE_MONTHLY)" "PaddlePriceYearly=$(PADDLE_PRICE_YEARLY)" \
+	    "BillingTesters=$(BILLING_TESTERS)"
 
 aws-migrate: ## Create tables inside the Lambda (wakes Aurora if paused)
 	@resp=$$(mktemp); \
@@ -93,6 +96,12 @@ aws-delete-user: ## Delete one account and its data: make aws-delete-user EMAIL=
 	  --payload '{"action": "delete_user", "email": "$(EMAIL)"}' --cli-read-timeout 0 --output text "$$resp" >/dev/null; \
 	echo "Delete $(EMAIL): $$(cat $$resp)"; rm -f "$$resp"
 
+aws-grant-pro: ## Give Pro by hand: make aws-grant-pro EMAIL=x@ucu.edu.ua [DAYS=30] (DAYS=0 takes it back)
+	@test -n "$(EMAIL)" || { echo "Usage: make aws-grant-pro EMAIL=... [DAYS=30]"; exit 1; }; resp=$$(mktemp); \
+	aws lambda invoke --function-name $(FUNCTION) --cli-binary-format raw-in-base64-out \
+	  --payload '{"action": "grant_pro", "email": "$(EMAIL)", "days": $(or $(DAYS),30)}' --cli-read-timeout 0 --output text "$$resp" >/dev/null; \
+	echo "Grant Pro $(EMAIL): $$(cat $$resp)"; rm -f "$$resp"
+
 aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$(TAG)
 	@uri=$$($(call out,$(ECR_STACK),RepositoryUri)); secret=$$($(call out,$(BACKEND_STACK),AppSecretArn)); \
 	test -n "$$uri" -a -n "$$secret" || { echo "Run make aws-ecr aws-backend first"; exit 1; }; \
@@ -100,7 +109,7 @@ aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$
 	  --capabilities CAPABILITY_IAM --tags $(TAGS) --no-fail-on-empty-changeset \
 	  --parameter-overrides ProjectName=$(PROJECT) ImageUri=$$uri:$(TAG) Architecture=$(LAMBDA_ARCH) \
 	    AppSecretArn=$$secret "OpenAiApiKey=$(OPENAI_API_KEY)" OpenAiModel=$(OPENAI_MODEL) \
-	    "OpenAiBaseUrl=$(OPENAI_BASE_URL)"
+	    "OpenAiBaseUrl=$(OPENAI_BASE_URL)" PaddleEnv=$(or $(PADDLE_ENV),sandbox) "PaddleApiKey=$(PADDLE_API_KEY)"
 
 aws-frontend: ## Create/update S3 + CloudFront (/api/ai/* → AI Lambda, /api/* → backend Lambda)
 	@api=$$($(call out,$(BACKEND_STACK),ApiDomain)); test -n "$$api" || { echo "Run make aws-backend first"; exit 1; }; \

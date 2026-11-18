@@ -116,10 +116,16 @@ Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum
   hours) — the core answer; **Courses** with Notion checkboxes in course colour (click toggles visibility); **Log out** at bottom.
 - **TopBar**: breadcrumbs (16px line icon + page name / current period); Planner calendar: range picker `Day · 3 days · Week · Month`
   (secondary-style select) right. Mobile: menu button left.
-- **PageHeader**: title, grey description (no icon).
+- **PageHeader**: 48px tile (56 desktop, `callout` bg, radius 6) with a 24px line icon in place of Notion's page emoji (Planner calendar,
+  Import upload, Settings gear), then title and grey description. Public text pages have no tile.
 - **View bar**: tabs `Calendar` (last range used, remembered) / `List` (L), blue `+ New` (N). Calendar toolbar below: period title
   14/600 left, `‹ Today ›` ghost right (moves one period). URL `?view=day|3day|week|month|list&date=YYYY-MM-DD` (date omitted = today).
-- **Callouts above the grid**: “won’t be finished in time” (red) and “N rough estimates · Estimate all with AI” (grey, sparkle icon).
+- **Won't fit**: compact ghost button in the view bar (red dot · count · “won’t fit” ▾); click opens a 320px popover (`shadow-pop`) listing
+  items with “Xh short · due …”. Off via Settings “Warn about late work”. No page-wide red callout.
+- **Callout above the grid**: “N rough estimates · Estimate all with AI” (grey, sparkle icon, “N free tries left” on Free).
+- **Pro hints**: next to Pro features on Free, grey “N free tries left”, then a blue “Upgrade to Pro” link (→ Settings → Plan).
+- **Settings → Plan**: plan line, AI estimates used this month, trial list, grey Pro callout with `$3 / month` (primary) and
+  `$24 / year` (secondary) opening Paddle's overlay; on Pro “Manage subscription” (Paddle portal).
 - **WeekGrid** (Day = 1, 3 days = 3, Week = 7 columns): column top hairline, column hairlines, weekend `bg-weekend`; header `Mon` + date number, today in a 24px
   red circle; past blocks `opacity .6`. Week = 3-day scroll-snap under 768px.
   - **Deadline row**: `DeadlineChip` = white Notion card (`shadow-card`, 22px, always one line) with status dot + title (+ due time in

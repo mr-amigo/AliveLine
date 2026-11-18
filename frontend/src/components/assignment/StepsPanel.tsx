@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react'
-import { aiApi, ApiError, assignmentsApi } from '../../api/client'
+import { ApiError, assignmentsApi } from '../../api/client'
 import type { Assignment, StepDraft } from '../../api/types'
+import { aiSteps } from '../../lib/ai'
+import { isPro, trialsUsedUp, useBilling } from '../../lib/billing'
 import { hoursLabel } from '../../lib/dates'
+import ProHint from '../ProHint'
 import { Button, Icon, IconButton, Stepper, useToast } from '../ui'
 
 const MAX_STEPS = 10
@@ -41,6 +44,7 @@ interface Props {
 /** Ordered steps of a big assignment: AI suggestion (accept / edit / dismiss), manual split, check off, reorder. */
 export default function StepsPanel({ a, title, description, course, autoSuggest, onChanged }: Props) {
   const toast = useToast()
+  const billing = useBilling()
   const [suggestion, setSuggestion] = useState<StepDraft[] | null>(suggestions.get(a.id)?.length ? suggestions.get(a.id)! : null)
   const [draft, setDraft] = useState<StepDraft[] | null>(null)
   const [noSplit, setNoSplit] = useState(false)
@@ -51,9 +55,9 @@ export default function StepsPanel({ a, title, description, course, autoSuggest,
     setBusy('ai')
     setNoSplit(false)
     try {
-      const res = await aiApi.steps({ title: title.trim() || a.title, description, course_name: course.trim() || null, hours: a.effective_hours })
-      suggestions.set(a.id, res.steps)
-      if (res.steps.length) setSuggestion(res.steps)
+      const steps = await aiSteps({ title: title.trim() || a.title, description, course_name: course.trim() || null, hours: a.effective_hours })
+      suggestions.set(a.id, steps)
+      if (steps.length) setSuggestion(steps)
       else if (quiet) dismiss(a.id)
       else setNoSplit(true)
     } catch (err) {
@@ -63,10 +67,11 @@ export default function StepsPanel({ a, title, description, course, autoSuggest,
     }
   }
 
-  // Offer a split on its own once per big AI-estimated task (never again after Dismiss).
+  // Offer a split on its own once per big AI-estimated task (never again after Dismiss). Pro only: on Free it would
+  // spend a trial use the student didn't ask for.
   useEffect(() => {
     const big = a.estimate_source === 'ai' && a.effective_hours >= AUTO_MIN_HOURS
-    if (autoSuggest && big && !a.done && steps.length === 0 && !suggestions.has(a.id) && !dismissed().has(a.id)) {
+    if (autoSuggest && isPro(billing) && big && !a.done && steps.length === 0 && !suggestions.has(a.id) && !dismissed().has(a.id)) {
       void suggest(true)
     }
   }, [a.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -124,10 +129,15 @@ export default function StepsPanel({ a, title, description, course, autoSuggest,
         {!draft && !suggestion && (
           <>
             {steps.length === 0 && (
-              <Button variant="ghost" size="sm" onClick={() => suggest(false)} loading={busy === 'ai'} disabled={busy !== null || a.done}>
-                {busy !== 'ai' && <Icon name="sparkle" />}
-                Suggest with AI
-              </Button>
+              <>
+                <ProHint feature="steps" />
+                {!trialsUsedUp(billing, 'steps') && (
+                  <Button variant="ghost" size="sm" onClick={() => suggest(false)} loading={busy === 'ai'} disabled={busy !== null || a.done}>
+                    {busy !== 'ai' && <Icon name="sparkle" />}
+                    Suggest with AI
+                  </Button>
+                )}
+              </>
             )}
             <Button
               variant="ghost"

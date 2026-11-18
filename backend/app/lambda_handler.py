@@ -15,6 +15,7 @@ from app import models  # noqa: F401  (registers tables on Base.metadata)
 from app.core.db import Base, SessionLocal, add_missing_columns, engine
 from app.main import app
 from app.models import User
+from app.services import billing_service
 from app.services.stats_service import compute_stats
 
 http_handler = Mangum(app, lifespan="off")
@@ -41,6 +42,11 @@ def delete_user(email: str) -> dict[str, Any]:
         return {"deleted": True}
 
 
+def grant_pro(email: str, days: int) -> dict[str, Any]:
+    with SessionLocal() as db:
+        return billing_service.grant_pro(db, email, days)
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if event.get("action") == "migrate":
         return migrate()
@@ -48,4 +54,6 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return stats()
     if event.get("action") == "delete_user":
         return delete_user(event["email"])
+    if event.get("action") == "grant_pro":
+        return grant_pro(event["email"], int(event.get("days", 30)))
     return http_handler(event, context)

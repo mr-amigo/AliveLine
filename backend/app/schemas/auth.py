@@ -31,6 +31,7 @@ class UserOut(BaseModel):
     min_session_hours: float
     interleave: bool
     suggest_steps: bool
+    show_at_risk: bool
     created_at: UtcDatetime
 
 
@@ -48,6 +49,7 @@ class SettingsUpdate(BaseModel):
     min_session_hours: float | None = Field(default=None, ge=0.5, le=4, multiple_of=0.5)
     interleave: bool | None = None
     suggest_steps: bool | None = None
+    show_at_risk: bool | None = None
 
     @field_validator("weekday_hours")
     @classmethod

@@ -295,10 +295,12 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] landing: CTA above the fold at 375 px, sticky mobile CTA bar; audit alt text, form error and loading states
 - [x] ~~cookieless analytics~~ — dropped by the owner (2026-11-18): no analytics scripts, no cookie banner (only the necessary `al_session` cookie; stated in Privacy)
 
-### Phase 13 — Payments (Merchant of Record, no ФОП)
-- [ ] Lemon Squeezy (MoR: they are the seller, handle cards + VAT, pay out to an individual; confirm Ukraine payouts at signup; Paddle as fallback). Free vs Pro (e.g. Free: 20 AI estimates/month, no AI steps; Pro: unlimited) — confirm limits with the owner first
-- [ ] `User.plan`, `plan_until`, `ls_customer_id`; `POST /api/billing/checkout` → hosted checkout URL (user id in custom data); `POST /api/billing/webhook` (HMAC `X-Signature`, idempotent) → plan updates; customer portal link
-- [ ] AI Lambda enforces Free limits (counter per user/month; needs DB access or a signed claim from backend → decide in phase); Pricing section on landing + Settings "Plan"; test mode end-to-end, then live
+### Phase 13 — Payments (Paddle, merchant of record, no ФОП)
+Lemon Squeezy closed sign-ups (2026-11-16) → Paddle Billing. Model (owner): Free keeps the core for good; extra AI features are Pro with 3 lifetime trial uses each.
+- [x] domain/billing.py: Free = deadlines, import, planner, all views, first AI estimate per assignment (100/month fair use); Pro ($3/mo, $24/yr) = AI steps, re-estimate, "Estimate all" unlimited, 1000 AI/month; 3-day grace after period end
+- [x] `User.plan/plan_until/paddle_*`, `trial_uses`, `ai_month(_count)`; `BillingEvent` (idempotency); `GET /api/billing`, `POST /api/billing/claim` (402 Pro needed / 429 monthly cap) → 2-min (bulk 15-min) JWT `aud=ai` with scope; AI Lambda requires `X-AI-Claim`; `POST /api/billing/webhook` (Paddle-Signature HMAC, 5-min tolerance, out-of-order ignored); portal: backend signs customer id → AI Lambda calls Paddle (backend has no internet); `make aws-grant-pro`
+- [x] frontend: Paddle.js overlay checkout (tester-only until `PADDLE_ENV=production`), Settings → Plan, Pro hints, Pricing (landing + /pricing), Refund policy, Terms/Privacy name Paddle as MoR
+- [ ] owner: sandbox "Default payment link" → test purchase with 4242 card → webhook turns Pro on; then live account (identity, payouts to Ukraine, site review; may need own domain) → production keys, `PADDLE_ENV=production`
 
 ## Progress log
 - 2026-11-18 — Phase 0: plan written (CLAUDE.md, docs/PLAN.md, docs/ONE_PAGER.md).
@@ -323,3 +325,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 11 done: views Day / 3 days / Week / Month / List (`?view=&date=`, last calendar range remembered; TopBar range picker; Month = load bars + deadlines, fetches only its own days since API max is 31); WorkBlock 32 px/h, min 40, two-line titles; chips one line (+ due time in Day/3 days); emoji removed (TopBar line icons, PageHeader without icon); "Rough estimate" + "Estimate with AI" in the drawer, "Estimate all with AI" callout (`lib/aiPass.ts`, shared with Import). Build ok; checked in headless Chromium (5 views, 1440 + 390 px, no overflow).
 - 2026-11-18 — Phase 12 (code) done: `usePageMeta` on every route, OG image (1200×630, 57 KB, rendered from HTML) + OG/Twitter tags, favicon svg/png 32/180, robots.txt (disallow /app, /api/) + sitemap.xml; `SiteLayout` footer (Privacy · Terms · Contact · mr.amigo98797@gmail.com), pages Privacy/Terms/Contact/Thanks, 404 restyled; waitlist success → /thanks with API error detail; 375 px hero CTA above the fold (bottom 396 px) + sticky mobile CTA bar. aws-publish now caches only `assets/` as immutable (robots/sitemap/og/favicons 1 h). Checked in headless Chromium.
 - 2026-11-18 — Analytics dropped (owner): GoatCounter code removed, Privacy says no tracking. Deployed phases 11–12.
+- 2026-11-18 — Phase 13 (code) done on Paddle sandbox: billing domain + claims + webhook + portal, 89 tests green; overlay checkout opens (blocked only by the unset sandbox default payment link). UI: page-header line-icon tiles instead of emoji; the big red at-risk callout became a compact “N won’t fit” popover in the view bar, toggle in Settings (`show_at_risk`).

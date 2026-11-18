@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { authApi } from '../api/client'
+import { billingStore } from '../lib/billing'
 import type { SignInData, SignUpData, User } from '../api/types'
 
 interface AuthState {
@@ -29,6 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(async (data: SignUpData) => setUser(await authApi.signUp(data)), [])
   const signOut = useCallback(async () => {
     await authApi.signOut().catch(() => undefined)
+    billingStore.clear()
     setUser(null)
   }, [])
 

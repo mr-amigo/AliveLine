@@ -13,6 +13,7 @@ export interface User {
   interleave: boolean
   /** Offer an AI split into steps for big tasks. */
   suggest_steps: boolean
+  show_at_risk: boolean
   created_at: string
 }
 
@@ -36,6 +37,7 @@ export interface SettingsUpdate {
   min_session_hours?: number
   interleave?: boolean
   suggest_steps?: boolean
+  show_at_risk?: boolean
 }
 
 export type Status = 'can_wait' | 'time_to_start' | 'critical' | 'done'
@@ -138,4 +140,34 @@ export interface ImportResult {
   updated: number
   skipped: number
   created_ids: number[]
+}
+
+// ---- Billing (phase 13) ----
+
+export type ClaimFeature = 'estimate' | 'steps' | 'bulk'
+/** Pro features with free trial uses. */
+export type TrialFeature = 'reestimate' | 'steps' | 'bulk'
+
+export interface CheckoutConfig {
+  environment: 'sandbox' | 'production'
+  client_token: string
+  prices: { monthly: string; yearly: string }
+}
+
+export interface Billing {
+  plan: 'free' | 'pro'
+  plan_until: string | null
+  subscription_status: string | null
+  can_manage: boolean
+  trials_left: Record<TrialFeature, number>
+  ai_used: number
+  ai_limit: number
+  /** null → checkout not open for this account yet. */
+  checkout?: CheckoutConfig | null
+}
+
+export interface ClaimOut {
+  token: string
+  feature: ClaimFeature | 'reestimate'
+  billing: Billing
 }

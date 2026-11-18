@@ -16,6 +16,15 @@ Parameters:
   AppSecretArn:
     Type: String
     Description: Backend stack's AppSecret (JWT key), so session cookies verify here too.
+  PaddleEnv:
+    Type: String
+    Default: sandbox
+    AllowedValues: [sandbox, production]
+  PaddleApiKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Paddle API key (customer portal links only).
   OpenAiApiKey:
     Type: String
     NoEcho: true
@@ -79,6 +88,8 @@ Resources:
           SECRET_KEY: !Sub "{{resolve:secretsmanager:${AppSecretArn}:SecretString:secret_key}}"
           OPENAI_API_KEY: !If [HasOpenAiKey, !Ref OpenAiApiKey, !Ref AWS::NoValue]
           OPENAI_MODEL: !Ref OpenAiModel
+          PADDLE_ENV: !Ref PaddleEnv
+          PADDLE_API_KEY: !Ref PaddleApiKey
           OPENAI_BASE_URL: !If [HasOpenAiBaseUrl, !Ref OpenAiBaseUrl, !Ref AWS::NoValue]
       Tags:
         - { Key: PROJECT_NAME, Value: !Ref ProjectName }

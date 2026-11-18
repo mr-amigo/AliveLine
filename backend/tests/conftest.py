@@ -5,7 +5,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["BCRYPT_ROUNDS"] = "4"
 os.environ["ENV"] = "test"
 # Never call a real LLM from tests, even if the shell has provider keys loaded.
-for _key in ("OPENAI_API_KEY",):
+for _key in ("OPENAI_API_KEY", "PADDLE_API_KEY", "PADDLE_CLIENT_TOKEN", "PADDLE_WEBHOOK_SECRET", "BILLING_TESTERS"):
     os.environ.pop(_key, None)
 
 import pytest

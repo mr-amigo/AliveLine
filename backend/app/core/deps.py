@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.db import SessionLocal
-from app.core.security import decode_access_token
+from app.core.security import decode_access_token, decode_claim
 from app.domain.estimation import (
     Estimator,
     HeuristicEstimator,
@@ -33,6 +33,20 @@ def current_user_id(request: Request) -> int:
     if user_id is None:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     return user_id
+
+
+def ai_claim(scope: str):  # type: ignore[no-untyped-def]
+    """Dependency factory: the caller must hold a fresh `X-AI-Claim` for `scope`, issued by /api/billing/claim
+    to this same user (the AI Lambda can't count usage itself: no DB)."""
+
+    def check(request: Request) -> int:
+        user_id = current_user_id(request)
+        claim = decode_claim(request.headers.get("x-ai-claim", ""), "ai")
+        if claim is None or claim.get("sub") != str(user_id) or claim.get("scope") != scope:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "AI permission missing or expired, try again")
+        return user_id
+
+    return check
 
 
 def current_user(request: Request, db: Session = Depends(get_db)) -> User:

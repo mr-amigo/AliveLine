@@ -82,11 +82,14 @@ def test_factory_picks_provider(monkeypatch):
 def test_ai_estimate_endpoint(client, signed_in):
     app.dependency_overrides[get_estimator] = lambda: OpenAIEstimator(FakeOpenAI(json.dumps({"hours": 4, "rationale": "ok"})), "m")
     try:
-        r = signed_in.post("/api/ai/estimate", json={"title": "Lab 3", "description": "REST API"})
+        token = signed_in.post("/api/billing/claim", json={"feature": "estimate"}).json()["token"]
+        h = {"X-AI-Claim": token}
+        r = signed_in.post("/api/ai/estimate", json={"title": "Lab 3", "description": "REST API"}, headers=h)
     finally:
         app.dependency_overrides.pop(get_estimator)
     assert r.status_code == 200 and r.json() == {"hours": 4.0, "rationale": "ok", "source": "ai"}
-    assert signed_in.post("/api/ai/estimate", json={"title": ""}).status_code == 422
+    assert signed_in.post("/api/ai/estimate", json={"title": ""}, headers=h).status_code == 422
+    assert signed_in.post("/api/ai/estimate", json={"title": "Lab"}).status_code == 401  # no claim
 
 
 def test_ai_estimate_requires_auth(client):

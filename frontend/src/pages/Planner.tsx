@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePageMeta } from '../hooks/usePageMeta'
 import { Link } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import ListView from '../components/plan/ListView'
 import MonthGrid from '../components/plan/MonthGrid'
 import WeekGrid from '../components/plan/WeekGrid'
+import { useAuth } from '../auth/AuthContext'
 import { useShell } from '../components/shell/AppShell'
 import PageHeader, { PAGE_X } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, IconButton, Loading, Skeleton } from '../components/ui'
 import { useShortcuts } from '../hooks/useShortcuts'
 import type { Assignment } from '../api/types'
+import ProHint from '../components/ProHint'
 import { AI_CAP, estimateWithAi, needsAi } from '../lib/aiPass'
+import { trialsUsedUp, useBilling } from '../lib/billing'
 import { CAL_VIEWS, hoursLabel, kyivDate, rangeTitle, relative, shiftView, VIEW_LABEL, type CalView } from '../lib/dates'
 
 const SHORTCUT: Record<CalView, string> = { day: 'D', '3day': '3', week: 'W', month: 'M' }
@@ -19,6 +22,7 @@ const SHORTCUT: Record<CalView, string> = { day: 'D', '3day': '3', week: 'W', mo
 export default function Planner() {
   usePageMeta('Planner')
   const s = useShell()
+  const { user } = useAuth()
   const { view } = s
   const calendar = view !== 'list'
   const title = rangeTitle(view, s.date)
@@ -39,7 +43,7 @@ export default function Planner() {
   })
 
   const plan = s.plan
-  const atRisk = plan?.assignments.filter((a) => !a.done && a.window.at_risk) ?? []
+  const atRisk = user?.show_at_risk === false ? [] : plan?.assignments.filter((a) => !a.done && a.window.at_risk) ?? []
   const rough = plan?.assignments.filter(needsAi) ?? []
 
   const tabs: { calendar: boolean; label: string; icon: 'calendar' | 'list'; key: string }[] = [
@@ -69,11 +73,11 @@ export default function Planner() {
       <TopBar icon="calendar" crumbs={['Planner', calendar ? title : 'All assignments']} right={picker} />
 
       <div className="flex flex-1 flex-col overflow-y-auto">
-        <PageHeader title="Planner" description="When to start each assignment — not just when it’s due." />
+        <PageHeader icon="calendar" title="Planner" description="When to start each assignment — not just when it’s due." />
 
         {/* Notion database view bar: view tabs left, blue New right */}
         <div className={`${PAGE_X} mt-6`}>
-          <div className="flex h-10 items-center gap-1 border-b border-line">
+          <div className="relative flex h-10 items-center gap-1 border-b border-line">
             <div role="tablist" aria-label="View" className="flex h-full items-center gap-1">
               {tabs.map((t) => (
                 <button
@@ -95,6 +99,7 @@ export default function Planner() {
               ))}
             </div>
             <div className="ml-auto flex items-center gap-1">
+              {plan && atRisk.length > 0 && <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />}
               <Button size="sm" onClick={() => s.openAssignment('new')} title="New assignment (N)" aria-label="New assignment">
                 <Icon name="plus" />
                 New
@@ -127,10 +132,9 @@ export default function Planner() {
           <EmptyState onNew={() => s.openAssignment('new')} />
         ) : (
           <>
-            {(atRisk.length > 0 || rough.length > 0) && (
-              <div className={`${PAGE_X} space-y-2 pb-3 ${calendar ? '' : 'pt-4'}`}>
-                {atRisk.length > 0 && <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />}
-                {rough.length > 0 && <RoughEstimates items={rough} onDone={s.reload} />}
+            {rough.length > 0 && (
+              <div className={`${PAGE_X} pb-3 ${calendar ? '' : 'pt-4'}`}>
+                <RoughEstimates items={rough} onDone={s.reload} />
               </div>
             )}
             <div className={`${PAGE_X} flex flex-1 flex-col ${calendar ? '' : 'pt-2'}`}>
@@ -166,6 +170,7 @@ export default function Planner() {
 
 /** Items still on the rule-based estimate (e.g. imported before the AI pass ran): one button runs AI over all of them. */
 function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => Promise<void> }) {
+  const billing = useBilling()
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const total = Math.min(items.length, AI_CAP)
@@ -175,7 +180,7 @@ function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => 
     setError(null)
     setProgress(0)
     try {
-      const estimated = await estimateWithAi(items, setProgress)
+      const estimated = await estimateWithAi(items, setProgress, true)
       if (estimated < total) setError(`AI couldn’t estimate ${total - estimated} of them. Open one to set hours yourself.`)
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'AI estimates stopped')
@@ -187,7 +192,7 @@ function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => 
   return (
     <Alert kind="info" icon={<Icon name="sparkle" />}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <p className="min-w-0 flex-1">
+        <p className="min-w-[12rem] flex-1">
           <strong className="font-semibold">
             {n} rough estimate{n === 1 ? '' : 's'}
           </strong>{' '}
@@ -195,55 +200,84 @@ function RoughEstimates({ items, onDone }: { items: Assignment[]; onDone: () => 
             {progress === null ? '— guessed from the title only. AI reads the whole task and gets closer.' : `— estimating ${progress} / ${total}…`}
           </span>
         </p>
-        <Button variant="secondary" size="sm" className="bg-transparent" loading={progress !== null} onClick={() => void run()}>
-          Estimate all with AI
-        </Button>
+        <span className="flex items-center gap-2">
+          <ProHint feature="bulk" />
+          {!trialsUsedUp(billing, 'bulk') && (
+            <Button variant="secondary" size="sm" className="bg-transparent" loading={progress !== null} onClick={() => void run()}>
+              Estimate all with AI
+            </Button>
+          )}
+        </span>
       </div>
       {error && <p className="mt-1 text-text-2">{error}</p>}
     </Alert>
   )
 }
 
-const AT_RISK_SHOWN = 3
-
-/** One callout for everything the plan can't fit (planner §4 v2): the most urgent first, the rest folded. */
+/**
+ * Compact "won't fit" indicator in the view bar (planner §4 v2 at_risk items); the list opens in a small popover.
+ * Can be turned off in Settings ("Warn about late work").
+ */
 function AtRisk({ items, today, onSelect }: { items: Assignment[]; today: string; onSelect: (id: number) => void }) {
   const [open, setOpen] = useState(false)
-  const shown = open ? items : items.slice(0, AT_RISK_SHOWN)
+  const box = useRef<HTMLDivElement>(null)
   const n = items.length
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false)
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
-    <Alert>
-      <p>
-        <strong className="font-semibold">
-          {n} assignment{n === 1 ? '' : 's'} won’t be finished in time
-        </strong>{' '}
-        <span className="text-text-2">
-          — the plan covers what’s due first. Open one to lower its estimate or mark it done, or add study hours in{' '}
-          <Link to="/app/settings" className="font-medium text-text underline underline-offset-2">Settings</Link>.
-        </span>
-      </p>
-      <ul className="mt-2 space-y-0.5">
-        {shown.map((a) => (
-          <li key={a.id}>
-            <button
-              type="button"
-              onClick={() => onSelect(a.id)}
-              className="flex w-full min-w-0 items-baseline gap-2 rounded px-1 py-0.5 text-left hover:bg-bg-hover"
-            >
-              <span className="truncate font-medium">{a.title}</span>
-              <span className="tnum shrink-0 text-meta text-text-2">
-                {hoursLabel(a.window.shortfall_hours)} short · due {relative(kyivDate(a.deadline), today)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {n > AT_RISK_SHOWN && (
-        <button type="button" onClick={() => setOpen(!open)} className="mt-1 px-1 text-meta font-medium text-text-2 hover:text-text">
-          {open ? 'Show less' : `Show ${n - AT_RISK_SHOWN} more`}
-        </button>
+    <div ref={box}>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        title={`${n} assignment${n === 1 ? '' : 's'} won’t fit before the deadline`}
+        onClick={() => setOpen(!open)}
+        className="flex h-7 items-center gap-1.5 rounded px-2 text-body text-text-2 hover:bg-bg-hover hover:text-text"
+      >
+        <span aria-hidden="true" className="h-2 w-2 rounded-full bg-critical" />
+        <span className="tnum font-medium text-text">{n}</span>
+        <span className="hidden sm:inline">won’t fit</span>
+        <Icon name="chevron-down" className="text-text-3" />
+      </button>
+      {open && (
+        <div role="dialog" aria-label="Assignments that won’t fit" className="absolute right-0 top-10 z-30 w-80 max-w-full rounded-md bg-bg p-1 shadow-pop">
+          <p className="px-2 pb-1.5 pt-2 text-meta text-text-2">
+            Not enough study hours before these deadlines. Open one to lower its estimate or mark it done, or add hours in{' '}
+            <Link to="/app/settings" className="font-medium text-text underline underline-offset-2">Settings</Link>.
+          </p>
+          <ul className="max-h-80 overflow-y-auto">
+            {items.map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    onSelect(a.id)
+                  }}
+                  className="flex w-full min-w-0 flex-col rounded px-2 py-1.5 text-left hover:bg-bg-hover"
+                >
+                  <span className="truncate text-body">{a.title}</span>
+                  <span className="tnum text-meta text-text-2">
+                    {hoursLabel(a.window.shortfall_hours)} short · due {relative(kyivDate(a.deadline), today)}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-    </Alert>
+    </div>
   )
 }
 

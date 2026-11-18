@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Outlet, useOutletContext, useSearchParams } from 'react-router-dom'
 import { usePlan, type PlanState } from '../../hooks/usePlan'
+import { billingStore } from '../../lib/billing'
 import { isValidDate, isView, todayKyiv, viewRange, type CalView, type View } from '../../lib/dates'
 import AssignmentDrawer from '../assignment/AssignmentDrawer'
 import Sidebar from './Sidebar'
@@ -60,6 +61,9 @@ export default function AppShell() {
   const today = plan?.today ?? clientToday
 
   const [hidden, setHidden] = useState(loadHidden)
+  useEffect(() => {
+    billingStore.load().catch(() => undefined) // limits are shown as hints only; AI calls re-check on the server
+  }, [])
   const [menuOpen, setMenuOpen] = useState(false)
 
   const toggleCourse = useCallback((key: string) => {

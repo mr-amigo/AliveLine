@@ -1,4 +1,6 @@
+import { trialsUsedUp, useBilling } from '../../lib/billing'
 import { hoursLabel } from '../../lib/dates'
+import ProHint from '../ProHint'
 import { Button, Icon } from '../ui'
 import HoursStepper from './HoursStepper'
 
@@ -22,6 +24,7 @@ export default function EstimatePanel({
   onHours,
   onEstimate,
   onUseAi,
+  reestimate = false,
 }: {
   hours: number | null
   origin: EstimateOrigin | null
@@ -33,7 +36,10 @@ export default function EstimatePanel({
   onHours: (h: number) => void
   onEstimate: () => void
   onUseAi: () => void
+  /** The AI already estimated this saved assignment: asking again is a Pro feature (trial uses on Free). */
+  reestimate?: boolean
 }) {
+  const locked = reestimate && trialsUsedUp(useBilling(), 'reestimate')
   return (
     <section aria-labelledby="estimate-heading" className="flex gap-3 rounded bg-callout px-4 py-3.5 text-body">
       <Icon name="sparkle" className="mt-0.5 text-start" />
@@ -42,9 +48,14 @@ export default function EstimatePanel({
           <h3 id="estimate-heading" className="font-semibold">
             {origin ? ORIGIN_LABEL[origin] : 'How long will it take?'}
           </h3>
-          <Button variant="secondary" size="sm" onClick={onEstimate} loading={estimating} disabled={!canEstimate} className="bg-transparent">
-            {hours === null || origin === 'heuristic' ? 'Estimate with AI' : 'Re-estimate'}
-          </Button>
+          <div className="flex items-center gap-2">
+            {reestimate && <ProHint feature="reestimate" />}
+            {!locked && (
+              <Button variant="secondary" size="sm" onClick={onEstimate} loading={estimating} disabled={!canEstimate} className="bg-transparent">
+                {hours === null || origin === 'heuristic' ? 'Estimate with AI' : 'Re-estimate'}
+              </Button>
+            )}
+          </div>
         </div>
 
         {hours === null ? (
