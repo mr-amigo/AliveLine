@@ -171,6 +171,19 @@ def _apply_subscription(db: Session, data: dict[str, Any], occurred_at: datetime
     return f"{user.plan} ({status})"
 
 
+def reset_billing(db: Session, email: str) -> dict[str, Any]:
+    """Ops (testing): back to a fresh Free account: plan, Paddle link, trial uses and monthly AI count."""
+    user = db.scalar(select(User).where(User.email == email.strip().lower()))
+    if user is None:
+        return {"reset": False}
+    user.plan, user.plan_until = "free", None
+    user.paddle_customer_id = user.paddle_subscription_id = user.paddle_status = None
+    user.billing_event_at = None
+    user.trial_uses, user.ai_month, user.ai_month_count = {}, None, 0
+    db.commit()
+    return {"reset": True}
+
+
 def grant_pro(db: Session, email: str, days: int) -> dict[str, Any]:
     """Ops: give Pro by hand (testers, friends); `days=0` takes it back."""
     user = db.scalar(select(User).where(User.email == email.strip().lower()))

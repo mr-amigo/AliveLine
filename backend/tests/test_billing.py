@@ -141,3 +141,15 @@ def test_checkout_only_for_testers_in_sandbox(signed_in, monkeypatch):
 
 def test_portal_claim_needs_a_customer(signed_in):
     assert signed_in.post("/api/billing/portal-claim").status_code == 404
+
+
+def test_reset_billing_gives_a_fresh_free_account(signed_in):
+    from app.core.db import SessionLocal
+    from app.services import billing_service
+
+    signed_in.post("/api/billing/claim", json={"feature": "steps"})
+    with SessionLocal() as db:
+        billing_service.grant_pro(db, "ana@ucu.edu.ua", 30)
+        assert billing_service.reset_billing(db, "ana@ucu.edu.ua") == {"reset": True}
+    b = signed_in.get("/api/billing").json()
+    assert b["plan"] == "free" and b["trials_left"]["steps"] == 3 and b["ai_used"] == 0

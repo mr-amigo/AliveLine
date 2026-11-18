@@ -102,6 +102,12 @@ aws-grant-pro: ## Give Pro by hand: make aws-grant-pro EMAIL=x@ucu.edu.ua [DAYS=
 	  --payload '{"action": "grant_pro", "email": "$(EMAIL)", "days": $(or $(DAYS),30)}' --cli-read-timeout 0 --output text "$$resp" >/dev/null; \
 	echo "Grant Pro $(EMAIL): $$(cat $$resp)"; rm -f "$$resp"
 
+aws-reset-billing: ## Testing: make an account fresh Free again (trials, AI count, Paddle link): make aws-reset-billing EMAIL=...
+	@test -n "$(EMAIL)" || { echo "Usage: make aws-reset-billing EMAIL=..."; exit 1; }; resp=$$(mktemp); \
+	aws lambda invoke --function-name $(FUNCTION) --cli-binary-format raw-in-base64-out \
+	  --payload '{"action": "reset_billing", "email": "$(EMAIL)"}' --cli-read-timeout 0 --output text "$$resp" >/dev/null; \
+	echo "Reset $(EMAIL): $$(cat $$resp)"; rm -f "$$resp"
+
 aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$(TAG)
 	@uri=$$($(call out,$(ECR_STACK),RepositoryUri)); secret=$$($(call out,$(BACKEND_STACK),AppSecretArn)); \
 	test -n "$$uri" -a -n "$$secret" || { echo "Run make aws-ecr aws-backend first"; exit 1; }; \

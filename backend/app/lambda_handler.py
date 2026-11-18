@@ -47,6 +47,11 @@ def grant_pro(email: str, days: int) -> dict[str, Any]:
         return billing_service.grant_pro(db, email, days)
 
 
+def reset_billing(email: str) -> dict[str, Any]:
+    with SessionLocal() as db:
+        return billing_service.reset_billing(db, email)
+
+
 def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     if event.get("action") == "migrate":
         return migrate()
@@ -56,4 +61,6 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         return delete_user(event["email"])
     if event.get("action") == "grant_pro":
         return grant_pro(event["email"], int(event.get("days", 30)))
+    if event.get("action") == "reset_billing":
+        return reset_billing(event["email"])
     return http_handler(event, context)
