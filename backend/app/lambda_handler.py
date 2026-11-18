@@ -12,7 +12,7 @@ from mangum import Mangum
 from sqlalchemy import select
 
 from app import models  # noqa: F401  (registers tables on Base.metadata)
-from app.core.db import Base, SessionLocal, engine
+from app.core.db import Base, SessionLocal, add_missing_columns, engine
 from app.main import app
 from app.models import User
 from app.services.stats_service import compute_stats
@@ -20,9 +20,9 @@ from app.services.stats_service import compute_stats
 http_handler = Mangum(app, lifespan="off")
 
 
-def migrate() -> dict[str, str]:
+def migrate() -> dict[str, Any]:
     Base.metadata.create_all(engine)
-    return {"status": "migrated"}
+    return {"status": "migrated", "added_columns": add_missing_columns(engine)}
 
 
 def stats() -> dict[str, int]:

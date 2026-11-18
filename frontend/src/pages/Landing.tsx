@@ -21,7 +21,7 @@ function demoPlan(today: string): { days: Day[]; assignments: Assignment[] } {
     { title: 'Essay draft', course: 'Philosophy', due: 5, status: 'time_to_start', blocks: [[0, 1], [1, 1], [3, 1], [4, 1]] },
     { title: 'Midterm prep', course: 'Calculus', due: 6, status: 'can_wait', blocks: [[4, 2], [5, 2]] },
   ]
-  const days: Day[] = Array.from({ length: 7 }, (_, i) => ({ date: addDays(today, i), items: [] as DayItem[] }))
+  const days: Day[] = Array.from({ length: 7 }, (_, i) => ({ date: addDays(today, i), capacity: 3, items: [] as DayItem[] }))
   const assignments = demo.map((d, id): Assignment => {
     for (const [day, hours] of d.blocks)
       days[day].items.push({ assignment_id: id, title: d.title, course_name: d.course, hours, status: d.status })
@@ -38,7 +38,7 @@ function demoPlan(today: string): { days: Day[]; assignments: Assignment[] } {
       user_hours: null,
       effective_hours: d.blocks.reduce((s, [, h]) => s + h, 0),
       done: false,
-      window: { start_date: today, target_finish: addDays(today, d.due - 1), status: d.status, unscheduled_hours: 0 },
+      window: { start_date: today, target_finish: addDays(today, d.due - 1), status: d.status, at_risk: false, shortfall_hours: 0 },
     }
   })
   return { days, assignments }
@@ -104,7 +104,7 @@ export default function Landing() {
           <div className="flex h-11 items-center px-4 text-body font-medium text-text-2">
             Your next 7 days at 3 h of study a day
           </div>
-          <WeekGrid days={demo.days} assignments={demo.assignments} capacity={3} today={today} />
+          <WeekGrid days={demo.days} assignments={demo.assignments} today={today} />
         </section>
 
         <section className="py-16">

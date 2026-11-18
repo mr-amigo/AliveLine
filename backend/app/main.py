@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import models  # noqa: F401  (registers tables on Base.metadata)
 from app.api import ai, assignments, auth, health, imports, plan, settings, waitlist
-from app.core.db import Base, engine
+from app.core.db import Base, add_missing_columns, engine
 
 # Built frontend (frontend/dist) is copied here in the Docker image.
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
@@ -16,7 +16,8 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    Base.metadata.create_all(engine)  # v1: no migrations (see docs/PLAN.md §3)
+    Base.metadata.create_all(engine)
+    add_missing_columns(engine)
     yield
 
 

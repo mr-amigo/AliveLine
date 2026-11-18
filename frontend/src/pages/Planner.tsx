@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import ListView from '../components/plan/ListView'
 import WeekGrid from '../components/plan/WeekGrid'
@@ -6,7 +7,8 @@ import PageHeader, { PAGE_X } from '../components/shell/PageHeader'
 import TopBar from '../components/shell/TopBar'
 import { Alert, Button, Icon, IconButton, Loading, Skeleton } from '../components/ui'
 import { useShortcuts } from '../hooks/useShortcuts'
-import { addDays, hoursLabel, mondayOf, weekTitle } from '../lib/dates'
+import type { Assignment } from '../api/types'
+import { addDays, hoursLabel, kyivDate, mondayOf, relative, weekTitle } from '../lib/dates'
 
 type View = 'week' | 'list'
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches
@@ -37,7 +39,7 @@ export default function Planner() {
   })
 
   const plan = s.plan
-  const unscheduled = plan?.assignments.filter((a) => !a.done).reduce((sum, a) => sum + a.window.unscheduled_hours, 0) ?? 0
+  const atRisk = plan?.assignments.filter((a) => !a.done && a.window.at_risk) ?? []
 
   const tabs: { v: View; label: string; icon: 'calendar' | 'list'; key: string }[] = [
     { v: 'week', label: 'Week', icon: 'calendar', key: 'W' },
@@ -107,12 +109,9 @@ export default function Planner() {
           <EmptyState onNew={() => s.openAssignment('new')} />
         ) : (
           <>
-            {unscheduled > 0 && (
+            {atRisk.length > 0 && (
               <div className={`${PAGE_X} pb-3 ${view === 'list' ? 'pt-4' : ''}`}>
-                <Alert>
-                  <strong className="tnum font-semibold">{hoursLabel(unscheduled)}</strong> don’t fit before their deadlines — raise daily hours in{' '}
-                  <Link to="/app/settings" className="font-medium underline underline-offset-2">Settings</Link> or correct estimates.
-                </Alert>
+                <AtRisk items={atRisk} today={plan.today} onSelect={s.openAssignment} />
               </div>
             )}
             <div className={`${PAGE_X} flex flex-1 flex-col ${view === 'list' ? 'pt-2' : ''}`}>
@@ -120,7 +119,6 @@ export default function Planner() {
                 <WeekGrid
                   days={plan.days}
                   assignments={plan.assignments}
-                  capacity={plan.capacity}
                   today={plan.today}
                   selectedId={s.selectedId}
                   hidden={s.hidden}
@@ -134,6 +132,49 @@ export default function Planner() {
         )}
       </div>
     </>
+  )
+}
+
+const AT_RISK_SHOWN = 3
+
+/** One callout for everything the plan can't fit (planner §4 v2): the most urgent first, the rest folded. */
+function AtRisk({ items, today, onSelect }: { items: Assignment[]; today: string; onSelect: (id: number) => void }) {
+  const [open, setOpen] = useState(false)
+  const shown = open ? items : items.slice(0, AT_RISK_SHOWN)
+  const n = items.length
+  return (
+    <Alert>
+      <p>
+        <strong className="font-semibold">
+          {n} assignment{n === 1 ? '' : 's'} won’t be finished in time
+        </strong>{' '}
+        <span className="text-text-2">
+          — the plan covers what’s due first. Open one to lower its estimate or mark it done, or add study hours in{' '}
+          <Link to="/app/settings" className="font-medium text-text underline underline-offset-2">Settings</Link>.
+        </span>
+      </p>
+      <ul className="mt-2 space-y-0.5">
+        {shown.map((a) => (
+          <li key={a.id}>
+            <button
+              type="button"
+              onClick={() => onSelect(a.id)}
+              className="flex w-full min-w-0 items-baseline gap-2 rounded px-1 py-0.5 text-left hover:bg-bg-hover"
+            >
+              <span className="truncate font-medium">{a.title}</span>
+              <span className="tnum shrink-0 text-meta text-text-2">
+                {hoursLabel(a.window.shortfall_hours)} short · due {relative(kyivDate(a.deadline), today)}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {n > AT_RISK_SHOWN && (
+        <button type="button" onClick={() => setOpen(!open)} className="mt-1 px-1 text-meta font-medium text-text-2 hover:text-text">
+          {open ? 'Show less' : `Show ${n - AT_RISK_SHOWN} more`}
+        </button>
+      )}
+    </Alert>
   )
 }
 

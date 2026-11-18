@@ -249,8 +249,11 @@ export default function AssignmentDrawer({ assignment: a, courses, today, onClos
           </dl>
 
           <div className="mt-4 space-y-2">
-            {w && w.unscheduled_hours > 0 && (
-              <Alert>{hoursLabel(w.unscheduled_hours)} don’t fit before the deadline. Raise daily hours in Settings or lower the estimate.</Alert>
+            {w?.at_risk && (
+              <Alert>
+                Won’t make it: {hoursLabel(w.shortfall_hours)} of this don’t fit before the deadline. Lower the estimate, or add study hours
+                in Settings.
+              </Alert>
             )}
             <EstimatePanel
               hours={hours}

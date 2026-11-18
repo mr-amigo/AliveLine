@@ -55,7 +55,8 @@ class WindowOut(BaseModel):
     start_date: date
     target_finish: date
     status: Status
-    unscheduled_hours: float
+    at_risk: bool
+    shortfall_hours: float
 
 
 class AssignmentOut(BaseModel):
@@ -84,6 +85,7 @@ class DayItem(BaseModel):
 
 class DayOut(BaseModel):
     date: date
+    capacity: float
     items: list[DayItem]
 
 

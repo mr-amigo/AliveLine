@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.domain.planner import Plan, PlanItem, WorkWindow, WorkWindowPlanner
+from app.domain.planner import Plan, PlanItem, PlanSettings, WorkWindow, WorkWindowPlanner
 from app.models import Assignment, User
 from app.schemas.assignment import AssignmentOut, DayItem, DayOut, PlanOut, WindowOut
 
@@ -38,9 +38,19 @@ def load_assignments(db: Session, user: User) -> list[Assignment]:
     )
 
 
+def plan_settings(user: User) -> PlanSettings:
+    return PlanSettings(
+        capacity=user.daily_capacity_hours,
+        buffer_days=user.buffer_days,
+        weekday_hours=tuple(user.weekday_hours) if user.weekday_hours else None,
+        max_session_hours=user.max_session_hours,
+        interleave=user.interleave,
+    )
+
+
 def compute_plan(user: User, assignments: list[Assignment], today: date) -> Plan:
     items = [PlanItem(a.id, local_date(a.deadline), a.effective_hours(), a.done) for a in assignments]
-    return WorkWindowPlanner().plan(items, user.daily_capacity_hours, user.buffer_days, today)
+    return WorkWindowPlanner().plan(items, plan_settings(user), today)
 
 
 def to_out(a: Assignment, window: WorkWindow) -> AssignmentOut:
@@ -75,6 +85,7 @@ def build_plan(
     days = max(1, min(days, MAX_RANGE_DAYS))
     assignments = load_assignments(db, user)
     plan = compute_plan(user, assignments, today)
+    settings = plan_settings(user)
     by_id = {a.id: a for a in assignments}
 
     def items_on(day: date) -> list[DayItem]:
@@ -93,6 +104,9 @@ def build_plan(
         today=today,
         capacity=user.daily_capacity_hours,
         today_items=items_on(today),
-        days=[DayOut(date=day, items=items_on(day)) for day in (start + timedelta(days=i) for i in range(days))],
+        days=[
+            DayOut(date=day, capacity=settings.hours_on(day), items=items_on(day))
+            for day in (start + timedelta(days=i) for i in range(days))
+        ],
         assignments=[to_out(a, plan.windows[a.id]) for a in assignments],
     )

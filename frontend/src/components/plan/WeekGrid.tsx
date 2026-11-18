@@ -10,7 +10,6 @@ const MAX_CHIPS = 2
 interface Props {
   days: Day[]
   assignments: Assignment[]
-  capacity: number
   today: string
   selectedId?: number | null
   hidden?: Set<string>
@@ -21,7 +20,7 @@ interface Props {
  * Seven day columns: header, deadline row, stacked work blocks (no hour rows — we plan hours per day).
  * Under 768px it becomes a horizontally swipeable 3-day view (scroll-snap).
  */
-export default function WeekGrid({ days, assignments, capacity, today, selectedId = null, hidden, onSelect }: Props) {
+export default function WeekGrid({ days, assignments, today, selectedId = null, hidden, onSelect }: Props) {
   const visible = (course: string | null) => !hidden?.has(courseKey(course))
   const dueByDay = new Map<string, Assignment[]>()
   for (const a of assignments) {
@@ -29,7 +28,7 @@ export default function WeekGrid({ days, assignments, capacity, today, selectedI
     const d = kyivDate(a.deadline)
     dueByDay.set(d, [...(dueByDay.get(d) ?? []), a])
   }
-  const bodyMin = capacity * HOUR_PX + 24
+  const bodyMin = Math.max(3, ...days.map((d) => d.capacity)) * HOUR_PX + 24
   const scroller = useRef<HTMLDivElement>(null)
   const todayHeader = useRef<HTMLDivElement>(null)
 
@@ -88,13 +87,19 @@ export default function WeekGrid({ days, assignments, capacity, today, selectedI
                 {items.map((it) => (
                   <WorkBlock key={it.assignment_id} item={it} past={past} selected={it.assignment_id === selectedId} onSelect={onSelect} />
                 ))}
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-x-0 border-t border-dashed border-line-strong"
-                  style={{ top: 4 + capacity * HOUR_PX }}
-                >
-                  {i === 0 && <span className="absolute right-1 top-0.5 text-tiny text-text-3">{hoursLabel(capacity)} / day</span>}
-                </div>
+                {day.capacity > 0 ? (
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 border-t border-dashed border-line-strong"
+                    style={{ top: 4 + day.capacity * HOUR_PX }}
+                  >
+                    {(i === 0 || day.capacity !== days[i - 1].capacity) && (
+                      <span className="absolute right-1 top-0.5 text-tiny text-text-3">{hoursLabel(day.capacity)} / day</span>
+                    )}
+                  </div>
+                ) : (
+                  items.length === 0 && <span className="px-1 pt-1 text-tiny text-text-3">Day off</span>
+                )}
               </div>
             </div>
           )

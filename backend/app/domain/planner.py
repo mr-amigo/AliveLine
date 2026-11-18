@@ -1,6 +1,6 @@
-"""Work-window planning: backward, as-late-as-possible scheduling of hours across all open assignments.
+"""Work-window planning: as-late-as-possible scheduling of hours across all open assignments.
 
-Pure domain logic (no FastAPI/SQLAlchemy). See docs/PLAN.md §4.
+Pure domain logic (no FastAPI/SQLAlchemy). See docs/PLAN.md §4 and §4 v2.
 """
 
 import math
@@ -25,11 +25,26 @@ class PlanItem:
 
 
 @dataclass(frozen=True)
+class PlanSettings:
+    """The user's planning preferences (all editable in Settings)."""
+
+    capacity: float = 3.0  # hours per day
+    buffer_days: int = 1
+    weekday_hours: tuple[float, ...] | None = None  # Mon..Sun; None → `capacity` every day
+    max_session_hours: float = 2.0  # preferred max of one task per day (soft)
+    interleave: bool = True  # False → no session cap: one task may fill a whole day
+
+    def hours_on(self, day: date) -> float:
+        return self.weekday_hours[day.weekday()] if self.weekday_hours else self.capacity
+
+
+@dataclass(frozen=True)
 class WorkWindow:
     start_date: date
     target_finish: date
     status: Status
-    unscheduled_hours: float = 0.0
+    at_risk: bool = False  # can't be finished before the deadline
+    shortfall_hours: float = 0.0  # hours of it that don't fit
 
 
 @dataclass(frozen=True)
@@ -47,15 +62,16 @@ def round_up_half(hours: float) -> float:
 
 
 class WorkWindowPlanner:
-    """Allocates each item's hours as late as possible before its target finish, earliest target first.
+    """Places each item's hours as late as possible before its target finish, earliest target first.
 
-    Feasibility: the schedule fits whenever, for every day, the hours of items targeted up to that day fit
-    in the capacity up to it (same as any optimal order). Overload: earliest-first means the urgent items
-    claim the days next to their targets (including today), and the hours that can't fit land on the
-    items with the latest deadlines, so "today" always goes to the most urgent work.
+    Earliest-first: an item fits iff the free hours up to its target cover it (earlier items only use days up
+    to their own targets). Under overload the urgent items keep the days next to their targets (incl. today);
+    an item that can't fit takes what is left in its window and is `at_risk` with `shortfall_hours`.
+    Session cap (soft): the first sweep takes at most `max_session_hours` of the item per day, so big tasks
+    spread over several days and days mix tasks; a second sweep ignores the cap only when the deadline needs it.
     """
 
-    def plan(self, items: list[PlanItem], capacity: float, buffer_days: int, today: date) -> Plan:
+    def plan(self, items: list[PlanItem], settings: PlanSettings, today: date) -> Plan:
         windows: dict[int, WorkWindow] = {}
         daily: dict[date, list[tuple[int, float]]] = {}
 
@@ -64,38 +80,64 @@ class WorkWindowPlanner:
             if item.done:
                 windows[item.id] = WorkWindow(item.deadline, item.deadline, Status.DONE)
             else:
-                open_items.append((item, self._target_finish(item.deadline, buffer_days, today)))
-
+                open_items.append((item, self._target_finish(item.deadline, settings.buffer_days, today)))
         if not open_items:
             return Plan(windows, daily)
 
         last_day = max(target for _, target in open_items)
-        free = {today + timedelta(days=i): capacity for i in range((last_day - today).days + 1)}
+        free = {
+            today + timedelta(days=i): settings.hours_on(today + timedelta(days=i))
+            for i in range((last_day - today).days + 1)
+        }
+        cap = settings.max_session_hours if settings.interleave else math.inf
+        order = sorted(open_items, key=lambda it: (it[1], it[0].deadline, it[0].id))
+        rank = {item.id: i for i, (item, _) in enumerate(order)}
 
-        for item, target in sorted(open_items, key=lambda it: (it[1], it[0].deadline, it[0].id)):
-            remaining = round_up_half(item.hours)
-            allocated: list[date] = []
-            day = target
-            while remaining > 0 and day >= today:
-                take = min(free.get(day, 0.0), remaining)
-                if take > 0:
-                    free[day] -= take
-                    remaining -= take
-                    allocated.append(day)
-                    daily.setdefault(day, []).append((item.id, take))
-                day -= timedelta(days=1)
-
-            start = min(allocated) if allocated else today
-            windows[item.id] = WorkWindow(
-                start_date=start,
-                target_finish=target,
-                status=self._status(item.deadline, start, remaining, today),
-                unscheduled_hours=round(remaining, 2),
-            )
+        for item, target in order:
+            hours = round_up_half(item.hours)
+            taken = self._place(free, today, target, hours, cap) if target >= today else {}
+            shortfall = round(hours - sum(taken.values()), 2)
+            windows[item.id] = self._window(item, target, taken, shortfall, today)
+            self._record(daily, item.id, taken)
 
         for allocations in daily.values():
-            allocations.sort(key=lambda a: a[0])
+            allocations.sort(key=lambda a: rank[a[0]])  # most urgent first within a day
         return Plan(windows, daily)
+
+    @staticmethod
+    def _place(free: dict[date, float], today: date, target: date, hours: float, cap: float) -> dict[date, float]:
+        """Takes up to `hours` latest-first from [today, target]; the cap applies in the first sweep only."""
+        taken: dict[date, float] = {}
+        remaining = hours
+        for limit in (cap, math.inf):
+            day = target
+            while remaining > 0 and day >= today:
+                take = min(free.get(day, 0.0), remaining, limit - taken.get(day, 0.0))
+                if take > 0:
+                    free[day] -= take
+                    taken[day] = taken.get(day, 0.0) + take
+                    remaining -= take
+                day -= timedelta(days=1)
+            if remaining <= 0:
+                break
+        return taken
+
+    @staticmethod
+    def _record(daily: dict[date, list[tuple[int, float]]], item_id: int, taken: dict[date, float]) -> None:
+        for day, hours in taken.items():
+            daily.setdefault(day, []).append((item_id, hours))
+
+    def _window(
+        self, item: PlanItem, target: date, taken: dict[date, float], shortfall: float, today: date
+    ) -> WorkWindow:
+        start = min(taken) if taken else today
+        return WorkWindow(
+            start_date=start,
+            target_finish=target,
+            status=self._status(item.deadline, start, shortfall, today),
+            at_risk=shortfall > 0,
+            shortfall_hours=shortfall,
+        )
 
     @staticmethod
     def _target_finish(deadline: date, buffer_days: int, today: date) -> date:
@@ -104,8 +146,8 @@ class WorkWindowPlanner:
         return max(today, deadline - timedelta(days=buffer_days))
 
     @staticmethod
-    def _status(deadline: date, start: date, unscheduled: float, today: date) -> Status:
-        if unscheduled > 0 or deadline < today or (deadline - today).days <= 1:
+    def _status(deadline: date, start: date, shortfall: float, today: date) -> Status:
+        if shortfall > 0 or deadline < today or (deadline - today).days <= 1:
             return Status.CRITICAL
         if start <= today + timedelta(days=1):
             return Status.TIME_TO_START

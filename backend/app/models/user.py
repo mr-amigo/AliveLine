@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, utcnow
@@ -15,6 +15,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     daily_capacity_hours: Mapped[float] = mapped_column(Float, default=3.0)
     buffer_days: Mapped[int] = mapped_column(Integer, default=1)
+    # Planner v2 (§4 v2). server_default so `add_missing_columns` can add them to existing tables.
+    weekday_hours: Mapped[list[float] | None] = mapped_column(JSON, nullable=True)  # Mon..Sun
+    max_session_hours: Mapped[float] = mapped_column(Float, default=2.0, server_default=text("2.0"))
+    interleave: Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
