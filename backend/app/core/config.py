@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     # AI estimates (AI Lambda / local dev). First configured provider wins: OpenAI, then Claude on Bedrock;
     # neither → heuristic. The backend Lambda sets none (no internet in its VPC).
     openai_api_key: str | None = None
-    openai_model: str = "gpt-4o-mini"
+    openai_model: str = "gpt-4.1-mini"
     openai_base_url: str | None = None  # for OpenAI-compatible providers
     bedrock_model: str | None = None  # e.g. us.anthropic.claude-haiku-4-5-20251001-v1:0
     bedrock_region: str = "us-east-1"

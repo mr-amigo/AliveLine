@@ -20,7 +20,7 @@ endif
 CLOUDFRONT_PLAN ?= FREE
 BUDGET_EMAIL    ?=
 # AI estimator provider (root .env): OPENAI_API_KEY [+ OPENAI_MODEL, OPENAI_BASE_URL], else BEDROCK_MODEL.
-OPENAI_MODEL    ?= gpt-4o-mini
+OPENAI_MODEL    ?= gpt-4.1-mini
 OPENAI_BASE_URL ?=
 BEDROCK_MODEL   ?=
 

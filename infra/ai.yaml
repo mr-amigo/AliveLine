@@ -23,7 +23,7 @@ Parameters:
     Description: OpenAI (or compatible) API key. Empty → Bedrock if BedrockModel is set, else heuristic.
   OpenAiModel:
     Type: String
-    Default: gpt-4o-mini
+    Default: gpt-4.1-mini
   OpenAiBaseUrl:
     Type: String
     Default: ""
