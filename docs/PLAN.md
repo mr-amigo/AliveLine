@@ -259,9 +259,9 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: on live site: sign up → import .ics → week grid shows blocks/deadlines → correct hours in drawer → statuses update; works at 375px.
 
 ### Phase 8 — Finish
-- [ ] Lambda action `stats` + `make aws-stats` (waitlist count, users, returning users = LoginEvents on ≥ 2 distinct days)
-- [ ] README final (screenshot, live URL, architecture, cost), GitHub Action CI (pytest + npm run build)
-- [ ] final `make aws-deploy` + smoke test
+- [x] Lambda action `stats` + `make aws-stats` (waitlist count, users, returning users = LoginEvents on ≥ 2 distinct days)
+- [x] README final (screenshot, live URL, architecture, cost), GitHub Action CI (pytest + npm run build)
+- [x] final `make aws-deploy` + smoke test
 
 ## Progress log
 - 2026-11-18 — Phase 0: plan written (CLAUDE.md, docs/PLAN.md, docs/ONE_PAGER.md).
@@ -279,3 +279,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 7 (code) done: Notion-style shell (Sidebar w/ MiniMonth/Today/Courses toggles, TopBar), WeekGrid (deadline row, height ∝ hours, capacity line, 3-day swipe on mobile) + ListView, AssignmentDrawer (AI estimate on create/re-estimate, hours stepper, done, delete w/ inline confirm, ⌘↵, Esc, focus trap; bottom sheet on mobile), Import (dropzone + AI pass over `created_ids`), Settings/Auth/Landing restyled, overload banner, shortcuts, waking-up/empty/error states. Course colour = hash of course name (API has no course_id); 768–1023 uses the overlay menu instead of an icon rail. Fixed root .gitignore `lib/` swallowing `frontend/src/lib` (Tailwind skipped it too). Verified in headless Chromium (desktop + 390px). Published to CloudFront.
 - 2026-11-18 — Bedrock/Claude estimator removed (code, IAM, docs); OpenAI only + heuristic; 58 tests green; image cf2af6d on backend + AI Lambdas. Live phase-7 DoD verified in headless Chromium on the smoke account: import 2 → OpenAI estimated both (~15 s total), drawer shows AI rationale, +15 h → window recomputed (18 h unscheduled), no API errors, 375 px no horizontal overflow; test items deleted. Fixed: drawer stayed "dirty" after save (server trims text) → state synced from response.
 - 2026-11-18 — UI redesigned as a close Notion copy (DESIGN.md rewritten): Notion palette/system font, workspace sidebar, breadcrumb TopBar, PageHeader (emoji + 40px title), database view tabs + blue New, calendar cells w/ red today + deadline cards, ListView as grouped Notion table with tags, drawer → side peek with properties + estimate callout, callout alerts, dark toast, Notion login. Build ok; checked in headless Chrome (1440 + 390 px, no console errors, no overflow).
+- 2026-11-18 — Phase 8 done: Lambda actions `stats` + `delete_user` (`make aws-stats`, `make aws-delete-user`), 60 tests green; GitHub Action CI (pytest + SPA build); README final (screenshot, AI Lambda in architecture, cost table, ops). Full `make aws-deploy` (117c6ce) + live smoke: health, SPA fallback, 401 anon, signin, me, /plan, /ai 422 on bad body; Playwright screenshot with no console errors. Leftover `smoke-live@ucu.edu.ua` deleted. Live stats: 1 user, 19 assignments, waitlist 0.
