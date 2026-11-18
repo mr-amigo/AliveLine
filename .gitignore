@@ -234,3 +234,7 @@ example/
 
 # User feedback raw data and report (submitted separately)
 docs/feedback/
+
+# Local tooling
+CLAUDE.md
+.vscode/

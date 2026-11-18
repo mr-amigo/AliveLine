@@ -7,6 +7,8 @@ AliveLine collects your deadlines, estimates how many hours each assignment need
 
 > Live: **https://d2b7fp4wgl1dok.cloudfront.net**
 
+![AliveLine planner: week view with work blocks per assignment, deadlines on top and a "won't fit" indicator](docs/img/screenshot.png)
+
 ## Why
 Moodle, Google Calendar and Todoist remind you of the **submission date**. That is the wrong signal: a deadline says nothing about how long the work takes, so the work slides to the last night. AliveLine plans backwards from the real deadlines of *all* your assignments and your daily capacity, and shows the day you need to start.
 
