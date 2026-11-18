@@ -8,7 +8,7 @@ SHELL := /bin/bash
 export $(shell sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p' .env 2>/dev/null)
 
 PROJECT    ?= aliveline
-# us-east-1: CloudFront flat-rate plan and Bedrock cross-region (us.*) models live here.
+# us-east-1: CloudFront flat-rate plan lives here.
 AWS_REGION := us-east-1
 export AWS_REGION
 export AWS_DEFAULT_REGION := $(AWS_REGION)
@@ -19,10 +19,9 @@ TAG := $(shell git describe --always --dirty=-dirty-$$(date +%Y%m%d%H%M%S) 2>/de
 endif
 CLOUDFRONT_PLAN ?= FREE
 BUDGET_EMAIL    ?=
-# AI estimator provider (root .env): OPENAI_API_KEY [+ OPENAI_MODEL, OPENAI_BASE_URL], else BEDROCK_MODEL.
+# AI estimator provider (root .env): OPENAI_API_KEY [+ OPENAI_MODEL, OPENAI_BASE_URL]; heuristic without a key.
 OPENAI_MODEL    ?= gpt-4.1-mini
 OPENAI_BASE_URL ?=
-BEDROCK_MODEL   ?=
 
 ECR_STACK      := $(PROJECT)-backend-ecr
 BACKEND_STACK  := $(PROJECT)-backend
@@ -88,7 +87,7 @@ aws-ai: ## Create/update the AI estimator Lambda (outside the VPC) with image :$
 	  --capabilities CAPABILITY_IAM --tags $(TAGS) --no-fail-on-empty-changeset \
 	  --parameter-overrides ProjectName=$(PROJECT) ImageUri=$$uri:$(TAG) Architecture=$(LAMBDA_ARCH) \
 	    AppSecretArn=$$secret "OpenAiApiKey=$(OPENAI_API_KEY)" OpenAiModel=$(OPENAI_MODEL) \
-	    "OpenAiBaseUrl=$(OPENAI_BASE_URL)" "BedrockModel=$(BEDROCK_MODEL)"
+	    "OpenAiBaseUrl=$(OPENAI_BASE_URL)"
 
 aws-frontend: ## Create/update S3 + CloudFront (/api/ai/* → AI Lambda, /api/* → backend Lambda)
 	@api=$$($(call out,$(BACKEND_STACK),ApiDomain)); test -n "$$api" || { echo "Run make aws-backend first"; exit 1; }; \

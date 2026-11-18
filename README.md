@@ -11,7 +11,7 @@ Moodle, Google Calendar and Todoist remind you about the **submission date**. Th
 ## Features (v1)
 - Sign up / sign in (httpOnly cookie session)
 - Add assignments manually or import a Moodle calendar (`.ics`)
-- AI estimate of hours from the assignment description (OpenAI or Claude on Bedrock, heuristic fallback), editable by the student
+- AI estimate of hours from the assignment description (OpenAI, heuristic fallback), editable by the student
 - Work window per assignment + status: **can wait**, **time to start**, **critical**, **done**
 - Personal settings: daily capacity (hours/day) and buffer days before deadlines
 - Early-access waitlist on the landing page
@@ -92,7 +92,6 @@ Cost: close to $0 when idle. Lambda and CloudFront (flat-rate Free plan) are fre
 | `APP_TZ` | `Europe/Kyiv` | Time zone for day-based planning |
 | `OPENAI_API_KEY` | empty | Enables AI estimates via OpenAI (AI Lambda; root `.env` for `make aws-ai`) |
 | `OPENAI_MODEL` | `gpt-4.1-mini` | OpenAI model for estimates |
-| `BEDROCK_MODEL` | empty | Claude on Bedrock (e.g. `us.anthropic.claude-haiku-4-5-20251001-v1:0`), used when no OpenAI key; heuristic if neither |
 | `PORT` | `8000` | Port of the all-in-one container |
 
 ## Team

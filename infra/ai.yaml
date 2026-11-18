@@ -20,17 +20,13 @@ Parameters:
     Type: String
     NoEcho: true
     Default: ""
-    Description: OpenAI (or compatible) API key. Empty → Bedrock if BedrockModel is set, else heuristic.
+    Description: OpenAI (or compatible) API key. Empty → heuristic estimates.
   OpenAiModel:
     Type: String
     Default: gpt-4.1-mini
   OpenAiBaseUrl:
     Type: String
     Default: ""
-  BedrockModel:
-    Type: String
-    Default: ""
-    Description: e.g. us.anthropic.claude-haiku-4-5-20251001-v1:0 (used only when OpenAiApiKey is empty).
   LogRetentionDays:
     Type: Number
     Default: 14
@@ -38,7 +34,6 @@ Parameters:
 Conditions:
   HasOpenAiKey: !Not [!Equals [!Ref OpenAiApiKey, ""]]
   HasOpenAiBaseUrl: !Not [!Equals [!Ref OpenAiBaseUrl, ""]]
-  HasBedrockModel: !Not [!Equals [!Ref BedrockModel, ""]]
 
 Resources:
   AiLogGroup:
@@ -60,14 +55,6 @@ Resources:
             Action: sts:AssumeRole
       ManagedPolicyArns:
         - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-      Policies:
-        - PolicyName: BedrockInvoke
-          PolicyDocument:
-            Version: "2012-10-17"
-            Statement:
-              - Effect: Allow
-                Action: [bedrock:InvokeModel, bedrock-mantle:CreateInference]
-                Resource: "*"
       Tags:
         - { Key: PROJECT_NAME, Value: !Ref ProjectName }
 
@@ -93,8 +80,6 @@ Resources:
           OPENAI_API_KEY: !If [HasOpenAiKey, !Ref OpenAiApiKey, !Ref AWS::NoValue]
           OPENAI_MODEL: !Ref OpenAiModel
           OPENAI_BASE_URL: !If [HasOpenAiBaseUrl, !Ref OpenAiBaseUrl, !Ref AWS::NoValue]
-          BEDROCK_MODEL: !If [HasBedrockModel, !Ref BedrockModel, !Ref AWS::NoValue]
-          BEDROCK_REGION: !Ref AWS::Region
       Tags:
         - { Key: PROJECT_NAME, Value: !Ref ProjectName }
 

@@ -16,7 +16,7 @@ Full design (domain model, API, algorithm, phases): **docs/PLAN.md**. UI design 
 
 ## Stack (fixed — don't change without asking)
 - backend/: Python 3.12, FastAPI, SQLAlchemy 2 (sync), Pydantic v2 + pydantic-settings, PyJWT, bcrypt,
-  icalendar, mangum, anthropic[bedrock] + openai SDKs. pip + requirements.txt. Tests: pytest + FastAPI TestClient on SQLite.
+  icalendar, mangum, openai SDK. pip + requirements.txt. Tests: pytest + FastAPI TestClient on SQLite.
 - frontend/: React 18 + TypeScript + Vite + Tailwind v4 (`@tailwindcss/vite`) + react-router-dom. No other UI/state libs.
 - infra/: CloudFormation (backend-ecr, backend, frontend) + Dockerfile.lambda; Makefile `make aws-*`. Also all-in-one Dockerfile + docker-compose.yml for local.
 - Prod: AWS us-east-1 — CloudFront (S3 SPA + `/api/*` → Lambda function URL, FastAPI via Mangum) + Aurora Serverless v2 Postgres. Local: SQLite by default.
@@ -49,7 +49,7 @@ Makefile  aws-* deploy targets
 - Type hints everywhere; small functions; docstring only where intent isn't obvious.
 - Secrets only via env (`SECRET_KEY`, `DATABASE_URL`, `COOKIE_SECURE`; AWS keys + `OPENAI_API_KEY` in root `.env` for make). Never commit `.env` or `example/`.
 - Shared AWS account: only create/modify `aliveline-*` resources; never touch onetwothree/`meetings-*`.
-- AI estimates run only in the AI Lambda (PLAN §5): OpenAI `gpt-4.1-mini` (working provider) or Claude on Bedrock (`AnthropicBedrock`, waiting for account access). Before touching Claude code, load the `claude-api` skill. Never call real LLMs in tests.
+- AI estimates run only in the AI Lambda (PLAN §5): OpenAI `gpt-4.1-mini`; heuristic fallback. Bedrock/Claude was removed (2026-11-18) — don't re-add. Never call real LLMs in tests.
 - UI: follow **docs/DESIGN.md** (tokens, layout, components). Load `frontend-design` skill once (phase 7). Don't invent new colours/sizes outside DESIGN.md.
 
 ## Commands

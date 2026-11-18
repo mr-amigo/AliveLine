@@ -6,7 +6,7 @@ import pytest
 
 from app.core import deps
 from app.core.deps import get_estimator
-from app.domain.estimation import ClaudeEstimator, HeuristicEstimator, OpenAIEstimator
+from app.domain.estimation import HeuristicEstimator, OpenAIEstimator
 from app.domain.estimation.llm import parse_estimate, user_prompt
 from app.main import app
 
@@ -24,16 +24,6 @@ class FakeOpenAI:
             choices=[NS(message=NS(content=self.content), finish_reason="stop")],
             usage=NS(prompt_tokens=120, completion_tokens=30),
         )
-
-
-class FakeClaude:
-    def __init__(self, blocks):
-        self.blocks, self.calls = blocks, []
-        self.messages = NS(create=self._create)
-
-    def _create(self, **kwargs):
-        self.calls.append(kwargs)
-        return NS(content=self.blocks, stop_reason="tool_use", usage=NS(input_tokens=100, output_tokens=20))
 
 
 def test_openai_estimator_parses_strict_json(caplog):
@@ -62,16 +52,9 @@ def test_openai_failures_fall_back_to_heuristic(client):
     assert est.source == "heuristic" and est.hours == 1.0
 
 
-def test_claude_estimator_reads_tool_call_and_clamps():
-    client = FakeClaude([NS(type="text", text="hm"), NS(type="tool_use", input={"hours": 90, "rationale": "Huge"})])
-    est = ClaudeEstimator(client, "claude-test").estimate("Thesis")
+def test_openai_estimate_is_clamped():
+    est = OpenAIEstimator(FakeOpenAI(json.dumps({"hours": 90, "rationale": "Huge"})), "m").estimate("Thesis")
     assert est.hours == 40 and est.source == "ai"
-    assert client.calls[0]["tools"][0]["name"] == "record_estimate"
-
-
-def test_claude_without_tool_call_falls_back():
-    est = ClaudeEstimator(FakeClaude([NS(type="text", text="I think 3h")]), "m").estimate("Essay")
-    assert est.source == "heuristic" and est.hours == 5
 
 
 def test_prompt_caps_input_and_parse_defaults():
@@ -82,7 +65,7 @@ def test_prompt_caps_input_and_parse_defaults():
 def test_factory_picks_provider(monkeypatch):
     def configured(**env):
         deps.get_settings.cache_clear(), deps._configured_estimator.cache_clear()
-        for k in ("OPENAI_API_KEY", "BEDROCK_MODEL"):
+        for k in ("OPENAI_API_KEY",):
             monkeypatch.delenv(k, raising=False)
         for k, v in env.items():
             monkeypatch.setenv(k, v)
@@ -90,10 +73,9 @@ def test_factory_picks_provider(monkeypatch):
 
     try:
         assert isinstance(configured(), HeuristicEstimator)
-        assert isinstance(configured(BEDROCK_MODEL="m"), ClaudeEstimator)
-        assert isinstance(configured(OPENAI_API_KEY="k", BEDROCK_MODEL="m"), OpenAIEstimator)
+        assert isinstance(configured(OPENAI_API_KEY="k"), OpenAIEstimator)
     finally:
-        monkeypatch.delenv("OPENAI_API_KEY", raising=False), monkeypatch.delenv("BEDROCK_MODEL", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
         deps.get_settings.cache_clear(), deps._configured_estimator.cache_clear()
 
 

@@ -97,26 +97,3 @@ class OpenAIEstimator(_LlmEstimator):
         usage = {"input_tokens": resp.usage.prompt_tokens, "output_tokens": resp.usage.completion_tokens} if resp.usage else {}
         return json.loads(content), usage
 
-
-class ClaudeEstimator(_LlmEstimator):
-    """Claude via the Anthropic SDK (Bedrock client in prod); answers through one tool call."""
-
-    provider = "claude"
-    TOOL: dict[str, Any] = {
-        "name": "record_estimate",
-        "description": "Record the hours estimate for the assignment.",
-        "input_schema": ESTIMATE_SCHEMA,
-    }
-
-    def _call(self, prompt: str) -> tuple[Any, dict[str, int]]:
-        msg = self.client.messages.create(
-            model=self.model,
-            max_tokens=1024,
-            system=SYSTEM_PROMPT + " Answer by calling record_estimate exactly once.",
-            tools=[self.TOOL],
-            messages=[{"role": "user", "content": prompt}],
-        )
-        call = next((b for b in msg.content if b.type == "tool_use"), None)
-        if call is None:
-            raise ValueError(f"no tool call (stop_reason={msg.stop_reason})")
-        return call.input, {"input_tokens": msg.usage.input_tokens, "output_tokens": msg.usage.output_tokens}

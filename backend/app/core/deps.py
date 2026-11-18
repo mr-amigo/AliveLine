@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.db import SessionLocal
 from app.core.security import decode_access_token
-from app.domain.estimation import ClaudeEstimator, Estimator, HeuristicEstimator, OpenAIEstimator
+from app.domain.estimation import Estimator, HeuristicEstimator, OpenAIEstimator
 from app.models import User
 
 
@@ -43,11 +43,6 @@ def _configured_estimator() -> Estimator:
 
         client = OpenAI(api_key=s.openai_api_key, base_url=s.openai_base_url, timeout=s.llm_timeout_seconds, max_retries=1)
         return OpenAIEstimator(client, s.openai_model)
-    if s.bedrock_model:
-        from anthropic import AnthropicBedrock
-
-        client = AnthropicBedrock(aws_region=s.bedrock_region, timeout=s.llm_timeout_seconds, max_retries=1)
-        return ClaudeEstimator(client, s.bedrock_model)
     return HeuristicEstimator()
 
 
