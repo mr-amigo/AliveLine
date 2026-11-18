@@ -11,7 +11,7 @@ Moodle, Google Calendar and Todoist remind you about the **submission date**. Th
 ## Features (v1)
 - Sign up / sign in (httpOnly cookie session)
 - Add assignments manually or import a Moodle calendar (`.ics`)
-- AI estimate of hours from the assignment description (Claude), editable by the student
+- AI estimate of hours from the assignment description (OpenAI or Claude on Bedrock, heuristic fallback), editable by the student
 - Work window per assignment + status: **can wait**, **time to start**, **critical**, **done**
 - Personal settings: daily capacity (hours/day) and buffer days before deadlines
 - Early-access waitlist on the landing page
@@ -73,7 +73,7 @@ docker compose -f infra/docker-compose.yml up --build
 Everything is CloudFormation in `infra/`, driven by the `Makefile`; region `us-east-1`.
 Needs: AWS CLI v2, Docker with buildx, Node 22.
 
-1. `cp .env.example .env` and fill in `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BUDGET_EMAIL` (a $5/month budget alert).
+1. `cp .env.example .env` and fill in `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `BUDGET_EMAIL` (a $5/month budget alert) and `OPENAI_API_KEY` (AI estimates; optional).
 2. `make aws-deploy`. It creates the ECR repo, pushes the Lambda image (tagged with the commit), deploys VPC + Aurora + Lambda (the first run takes about 10 minutes), creates tables, deploys S3 + CloudFront, then uploads the SPA.
 3. `make aws-url` prints the site URL (`https://<id>.cloudfront.net`). Open it and sign up.
 
@@ -90,7 +90,9 @@ Cost: close to $0 when idle. Lambda and CloudFront (flat-rate Free plan) are fre
 | `DB_NULL_POOL` | `false` | `true` on Lambda: no pooled connections, so Aurora can pause |
 | `COOKIE_SECURE` | `false` | `true` behind HTTPS (set on AWS) |
 | `APP_TZ` | `Europe/Kyiv` | Time zone for day-based planning |
-| `BEDROCK_MODEL` | empty | Claude model on Bedrock (`us.anthropic.claude-haiku-5-5`), set on the AI Lambda; heuristic estimates without it (phase 5) |
+| `OPENAI_API_KEY` | empty | Enables AI estimates via OpenAI (AI Lambda; root `.env` for `make aws-ai`) |
+| `OPENAI_MODEL` | `gpt-4.1-mini` | OpenAI model for estimates |
+| `BEDROCK_MODEL` | empty | Claude on Bedrock (e.g. `us.anthropic.claude-haiku-4-5-20251001-v1:0`), used when no OpenAI key; heuristic if neither |
 | `PORT` | `8000` | Port of the all-in-one container |
 
 ## Team

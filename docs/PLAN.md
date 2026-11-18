@@ -21,7 +21,7 @@ Success metrics (from one-pager): 20 early-access signups in 7 days; 8 returning
 |---|---|
 | Visitor | UC1 Join early-access list (email) · UC2 Sign up |
 | Student | UC3 Sign in / sign out · UC4 Add assignment manually · UC5 Import Moodle calendar (.ics) · UC6 Get AI estimate and correct it · UC7 View plan (work windows, statuses, "today" list) · UC8 Edit / delete / mark done · UC9 Set daily capacity & buffer |
-| AI service (Claude on Amazon Bedrock) | Secondary actor in UC4/UC5/UC6 |
+| AI service (OpenAI `gpt-4.1-mini`; Claude on Bedrock when access is granted) | Secondary actor in UC4/UC5/UC6 |
 | Moodle API | Future secondary actor (UC5b, stub only in v1) |
 
 Out of scope v1: notifications, mobile app, Moodle API sync (interface only), teams/sharing.
@@ -70,6 +70,7 @@ classDiagram
   class Estimate { <<value object>> hours; rationale; source }
 
   class Estimator { <<interface>> +estimate(title, description, course) Estimate }
+  class OpenAIEstimator
   class ClaudeEstimator
   class HeuristicEstimator
   class AssignmentSource { <<interface>> +parse(data) list~AssignmentDraft~ }
@@ -82,7 +83,9 @@ classDiagram
   User "1" --> "*" Assignment
   User "1" --> "*" LoginEvent
   Course "1" --> "*" Assignment
+  Estimator <|.. OpenAIEstimator
   Estimator <|.. ClaudeEstimator
+  OpenAIEstimator ..> HeuristicEstimator : fallback on error
   Estimator <|.. HeuristicEstimator
   ClaudeEstimator ..> HeuristicEstimator : fallback on error
   AssignmentSource <|.. IcsSource
@@ -93,7 +96,7 @@ classDiagram
 ```
 
 Design decisions:
-- **Strategy** — `Estimator` (Claude vs heuristic); `get_estimator()` **factory** picks Claude when `BEDROCK_MODEL` is set (AI Lambda, local dev with AWS creds), else heuristic (main backend Lambda: in a VPC without internet). Claude errors/timeouts fall back to heuristic, so the app never breaks.
+- **Strategy** — `Estimator` (OpenAI / Claude / heuristic); `get_estimator()` **factory** picks OpenAI when `OPENAI_API_KEY` is set, else Claude on Bedrock when `BEDROCK_MODEL` is set, else heuristic (main backend Lambda: in a VPC without internet). LLM errors/timeouts fall back to heuristic, so the app never breaks.
 - **Adapter** — `AssignmentSource` turns external formats (.ics now, Moodle API later) into `AssignmentDraft` dataclasses.
 - **Value objects** — `WorkWindow`, `Estimate`, `Plan` are frozen dataclasses; computed on read → no stale data.
 - **Service layer + DTOs** — routers thin, services own transactions, Pydantic schemas at the boundary.
@@ -123,12 +126,15 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 ## 5. Estimation (domain/estimation/)
 - `base.py`: `Estimate` dataclass (hours, rationale, source), `Estimator` Protocol.
 - `heuristic.py`: keyword base hours (project 10, exam/test prep 6, essay 5, report/lab 4, homework/problem set 3, quiz 1, default 3) + `min(len(words)/150, 4)`; clamp 0.5–40; rationale explains the rule.
-- `claude.py`: `anthropic.AnthropicBedrock` (IAM role creds, region us-east-1), model `BEDROCK_MODEL=us.anthropic.claude-haiku-5-5`, timeout 15 s, small max_tokens; prompt: "Estimate focused hours a 1st–2nd year university student needs… return JSON {hours, rationale (≤ 1 sentence)}". Parse + clamp; any exception → heuristic. (Load `claude-api` skill before writing.) Input capped (title 200, description 4000 chars).
+- `llm.py`: shared prompt (`SYSTEM_PROMPT`, `<assignment>` tags, input capped: title 200, description 4000) + JSON schema `{hours, rationale}`; rationale in the assignment's language (English if unclear).
+  - `OpenAIEstimator`: Chat Completions, `response_format` strict `json_schema`, `max_completion_tokens=300`, model `OPENAI_MODEL=gpt-4.1-mini` (~1–3 s, ~250 tokens). `OPENAI_BASE_URL` allows compatible providers.
+  - `ClaudeEstimator`: `anthropic.AnthropicBedrock` + one `record_estimate` tool call, model `BEDROCK_MODEL` (planned `us.anthropic.claude-haiku-4-5-20251001-v1:0`). **Status 2026-11-18: account has 0 Bedrock quota for Haiku 4.5 and 403 for newer Claude models; AWS support request pending.** Mantle (`AnthropicBedrockMantle`) didn't serve these IDs; the runtime client did reach the account.
+  - Any exception or invalid output → heuristic; one JSON log line per estimate (provider, model, tokens, latency) → `make aws-ai-logs`.
 - **Where it runs** (backend Lambda has no internet → no Bedrock):
   - `api/ai.py`: `POST /api/ai/estimate {title, description?, course_name?}` → `Estimate`. Auth = verify our JWT cookie only (no DB). Served by a separate **AI Lambda** outside the VPC (`app/ai_handler.py`: tiny FastAPI app with this router + Mangum; same ECR image, command override); CloudFront routes `/api/ai/*` there. Locally the router is also mounted in `main.py`.
   - Backend: `POST /assignments` / `PATCH` accept optional `estimate {hours, rationale, source}` from the client; if absent and no `user_hours` → heuristic on the server. Student's own data, so trusting the client estimate is fine.
   - Frontend (phase 7): form calls `/api/ai/estimate` on "Estimate"/create and sends the result; after .ics import it estimates new items sequentially (cap 30) and PATCHes them.
-- Cost: Bedrock tokens only (Haiku, ~1k tokens per estimate); WAF rate limit + $5 budget guard it.
+- Cost: ~250 tokens per estimate on gpt-4.1-mini (fractions of a cent); WAF rate limit + $5 AWS budget; OpenAI key has its own small balance.
 
 ## 6. Import (domain/importers/)
 - `ics.py` using `icalendar`: for each `VEVENT` → `AssignmentDraft(title, description, deadline=DTEND or DTSTART, course=CATEGORIES or None, external_uid=UID)`.
@@ -188,7 +194,7 @@ AWS, CloudFormation + Makefile (pattern from the course's reference project), re
 - **DB**: Aurora Serverless v2 PostgreSQL 16, min 0 ACU (auto-pause 5 min), private subnets, no NAT. `DB_NULL_POOL=true` so it can pause. `DATABASE_URL` and `SECRET_KEY` are resolved from Secrets Manager at deploy (`infra/backend.yaml`).
 - **Cost guard**: `AWS::Budgets::Budget` of $5/month → `BUDGET_EMAIL`.
 - **Make**: `make aws-deploy` (ecr → push → backend → migrate → frontend → publish); `aws-push aws-backend` / `aws-publish` for updates; root `.env` (git-ignored) holds AWS keys.
-- **AI Lambda** (phase 5, `infra/ai.yaml`): outside the VPC, same image with `ImageConfig.Command=app.ai_handler.handler`, IAM `bedrock:InvokeModel` on the Haiku inference profile, function URL; frontend stack gets optional `AiDomain` → behavior `/api/ai/*` (listed before `/api/*`).
+- **AI Lambda** (`infra/ai.yaml`, `make aws-ai`): outside the VPC, same image with `ImageConfig.Command=app.ai_handler.handler`, env `SECRET_KEY` (resolved from backend `AppSecretArn`), `OPENAI_API_KEY` (NoEcho param from root `.env`), `OPENAI_MODEL`, `BEDROCK_MODEL`; IAM `bedrock:InvokeModel`; function URL. Frontend stack param `AiDomain` → behavior `/api/ai/*` before `/api/*`.
 - **Ops via Lambda actions** (Aurora is private): `{"action":"migrate"}` → `make aws-migrate`; `{"action":"stats"}` → `make aws-stats` (phase 8).
 - **Account**: shared AWS account (keys from the reference project, root `.env`). Never touch `onetwothree`/`meetings-*` stacks; everything ours is `aliveline-*`. CloudFront Free plan: 3 per account, 1 used by onetwothree.
 - **Local**: `infra/Dockerfile` (node:22-slim build → python:3.12-slim, FastAPI serves `static/`) and `infra/docker-compose.yml` (app + postgres:16) stay for local runs.
@@ -231,12 +237,13 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] `make aws-push aws-backend aws-migrate`; smoke `/api/plan` on live
 - DoD: tests green; live API creates tables + returns plan.
 
-### Phase 5 — AI estimation (Claude on Bedrock)
-- [ ] load `claude-api` skill; domain/estimation/claude.py (AnthropicBedrock) + `get_estimator()` factory
-- [ ] api/ai.py (`POST /ai/estimate`, JWT-only auth), app/ai_handler.py; mount router in main.py for local
-- [ ] infra/ai.yaml + Makefile `aws-ai`; frontend.yaml `AiDomain` + `/api/ai/*` behavior
-- [ ] tests: heuristic, fake Claude client (JSON parse/clamp/fallback), /ai/estimate auth 401
-- DoD: live `/api/ai/estimate` returns Claude estimate + rationale; on error → heuristic.
+### Phase 5 — AI estimation
+- [x] domain/estimation/llm.py (OpenAIEstimator + ClaudeEstimator, shared prompt/schema/parse) + `get_estimator()` factory (OpenAI → Bedrock → heuristic)
+- [x] api/ai.py (`POST /ai/estimate`, JWT-only auth), app/ai_handler.py; router also mounted in main.py for local
+- [x] infra/ai.yaml + Makefile `aws-ai`, `aws-ai-logs`; frontend.yaml `AiDomain` + `/api/ai/*` behavior; backend output `AppSecretArn`
+- [x] tests/test_estimation.py: fakes for both clients (parse, clamp, fallbacks), factory, endpoint auth 401/422, AI app mounts only /api/ai
+- [ ] Bedrock: when AWS grants Haiku 4.5 access, run `make aws-ai OPENAI_API_KEY= BEDROCK_MODEL=us.anthropic.claude-haiku-4-5-20251001-v1:0` and smoke-test (optional; OpenAI is the working provider)
+- DoD: live `/api/ai/estimate` returns an AI estimate + rationale; on error → heuristic. ✅ (OpenAI)
 
 ### Phase 6 — .ics import
 - [ ] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py (returns `created_ids`)
@@ -268,3 +275,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 3 done: live at https://d2b7fp4wgl1dok.cloudfront.net (us-east-1, stacks aliveline-{backend-ecr,backend,frontend}). Smoke: health, SPA fallback, API 404 passes through, signup (Secure cookie), me, signout→401, signin. First deploy ~17 min.
 - 2026-11-18 — Design direction: Notion-Calendar-style (own brand) → docs/DESIGN.md; §8 now routes/structure only; /plan returns a week range for WeekGrid; phase 7 rewritten.
 - 2026-11-18 — Phase 4 done: Course/Assignment models, WorkWindowPlanner, heuristic estimator (server default; client may pass `estimate`), CRUD + GET /plan?from&days; 33 tests green; deployed (aws-push/backend/migrate) and smoke-tested on live Postgres. Added tzdata. `window` is never null.
+- 2026-11-18 — Phase 5 done: AI Lambda live at /api/ai/estimate via OpenAI gpt-4.1-mini (Bedrock blocked: 0 quota / 403 in the shared account, support pending; code supports it). 46 tests green. Live: 401 without cookie, Ukrainian course project → 30 h with Ukrainian rationale (5.6 s cold), create with estimate → planned 3 h/day.
