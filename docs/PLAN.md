@@ -120,6 +120,12 @@ Input: `items: list[PlanItem(id, deadline: date, hours: float, done: bool)]`, `c
 Rounding: hours to 0.5. Capacity validated 0.5–12, buffer 0–7.
 Required tests (tests/test_planner.py): single item fits; two overlapping items push the earlier one earlier; insufficient capacity → critical with unscheduled hours; overdue → critical; done → DONE; far deadline → can_wait; boundary for time_to_start.
 
+### §4 v2 (phase 9) — sessions, interleaving, priorities
+- **Session cap**: at most `max_session_hours` (default 2) of one task on one day. A task needing more than that is spread across several days; with spare days it is spread evenly rather than packed at the end.
+- **Interleaving**: a day holds several tasks in short sessions (e.g. 2 h maths + 1 h physics) instead of one long block; ordering within a day by urgency.
+- **Overload**: when total hours don't fit, choose which items to keep whole by priority = earliest deadline, then smaller shortfall (more items finished beats one half-done); items that can't be finished get status `critical` + `at_risk=True` + `shortfall_hours` and are listed once in the UI ("Won't make it"), not as per-card "unscheduled".
+- Steps (phase 10) are planned like tasks with a precedence constraint.
+
 ## 5. Estimation (domain/estimation/)
 - `base.py`: `Estimate` dataclass (hours, rationale, source), `Estimator` Protocol.
 - `heuristic.py`: keyword base hours (project 10, exam/test prep 6, essay 5, report/lab 4, homework/problem set 3, quiz 1, default 3) + `min(len(words)/150, 4)`; clamp 0.5–40; rationale explains the rule.
@@ -262,6 +268,32 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] Lambda action `stats` + `make aws-stats` (waitlist count, users, returning users = LoginEvents on ≥ 2 distinct days)
 - [x] README final (screenshot, live URL, architecture, cost), GitHub Action CI (pytest + npm run build)
 - [x] final `make aws-deploy` + smoke test
+
+### Phase 9 — Planner v2: priorities, sessions, interleaving (§4 v2)
+- [ ] domain/planner.py v2 per §4 v2: session cap per task/day (`max_session_hours`, default 2), spread over days when slack allows, interleave tasks within a day; overload → keep the most urgent/valuable items whole, the rest become `at_risk` with `shortfall_hours` (no partial "unscheduled" noise)
+- [ ] `User.max_session_hours` (1–6) in Settings; plan API: `at_risk` list + `shortfall_hours`; tests/test_planner.py rewritten (split, interleave, priority under overload, at_risk)
+- [ ] frontend: remove "unscheduled" labels from cards/cells; one compact "Won't make it" callout listing at-risk items (open → drawer: raise hours / lower estimate / mark done)
+
+### Phase 10 — AI steps (subtasks)
+- [ ] model `Step(id, assignment_id, title, hours, done, order)`; `POST /api/ai/steps` (AI Lambda; split into 2–6 steps with hours, same language; heuristic fallback = even chunks)
+- [ ] planner plans steps in order (step N+1 never before step N) using phase-9 sessions; assignment hours = sum of open steps
+- [ ] drawer: Steps section (AI suggest, edit title/hours, reorder, check off); calendar blocks show step title
+
+### Phase 11 — Calendar ranges + UI fixes
+- [ ] views Day / 3 days / Week / Month (+ List); TopBar range picker; URL `?view=&date=`; Month = deadlines + daily load bars; `/plan?from&days` already supports it
+- [ ] less crowded blocks: two-line titles, min block height, deadline chips one line
+- [ ] remove all emoji from UI (DESIGN §9); estimate label: `heuristic` → "Rough estimate" + "Estimate with AI" (it is not an outage: AI logs show 0 errors; items imported before the AI pass are heuristic) + "Estimate all with AI" for heuristic items
+
+### Phase 12 — Launch checklist
+- [ ] per-route `<title>` + meta description (small `usePageMeta`), OG image (1200×630 PNG, compressed) + OG/Twitter tags, favicon set (svg + png 32/180), `robots.txt` (disallow /app), `sitemap.xml` (/, /signin, /signup, /privacy, /terms)
+- [ ] pages: Privacy, Terms, Contact (real email in footer), waitlist thank-you state → `/thanks`; custom 404 already exists → restyle check
+- [ ] landing: CTA above the fold at 375 px, sticky mobile CTA bar; audit alt text, form error and loading states
+- [ ] cookieless analytics (GoatCounter or Cloudflare Web Analytics; script host allowed in CSP if any) → no cookie banner needed (only the necessary `al_session` cookie; stated in Privacy)
+
+### Phase 13 — Payments (Merchant of Record, no ФОП)
+- [ ] Lemon Squeezy (MoR: they are the seller, handle cards + VAT, pay out to an individual; confirm Ukraine payouts at signup; Paddle as fallback). Free vs Pro (e.g. Free: 20 AI estimates/month, no AI steps; Pro: unlimited) — confirm limits with the owner first
+- [ ] `User.plan`, `plan_until`, `ls_customer_id`; `POST /api/billing/checkout` → hosted checkout URL (user id in custom data); `POST /api/billing/webhook` (HMAC `X-Signature`, idempotent) → plan updates; customer portal link
+- [ ] AI Lambda enforces Free limits (counter per user/month; needs DB access or a signed claim from backend → decide in phase); Pricing section on landing + Settings "Plan"; test mode end-to-end, then live
 
 ## Progress log
 - 2026-11-18 — Phase 0: plan written (CLAUDE.md, docs/PLAN.md, docs/ONE_PAGER.md).

@@ -11,8 +11,8 @@ Source of truth for any UI change. Tokens live in `frontend/src/index.css` (`@th
 | Notion trait | What it looks like | Where in AliveLine |
 |---|---|---|
 | **Warm-grey sidebar** | 240px, `#F7F7F5`, workspace row on top, 30px rows, 14/500 `#5F5E5B`, grey 12px section labels | `Sidebar` (workspace row, Planner/Import/Settings, mini month, Today, Courses, Log out) |
-| **Borderless top bar** | 44px, breadcrumbs `emoji Page / Sub`, actions right, no hairline | `TopBar` |
-| **Page header** | Big emoji icon, 40px bold title, grey description, 96px side gutters (full width) or 708px column | `PageHeader` on Planner, Import, Settings |
+| **Borderless top bar** | 44px, breadcrumbs `Page / Sub` (16px line icon before Page), actions right, no hairline | `TopBar` |
+| **Page header** | 40px bold title, grey description, 96px side gutters (full width) or 708px column | `PageHeader` on Planner, Import, Settings |
 | **Database view bar** | View tabs (icon + name, 2px dark underline on active), blue **New** button right, hairline under | Planner `Week` / `List` tabs |
 | **Calendar view** | Hairline cells, weekends `#FBFBFA`, today's date in a red circle, items as white cards with soft shadow | `WeekGrid` header + `DeadlineChip` cards |
 | **Calendar events** | Pastel tint fill, coloured left bar, dark same-hue text | `WorkBlock` (status tint + course bar) |
@@ -80,7 +80,7 @@ Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum
 
 ## 4. Space, shape, elevation
 - 4px grid. Sidebar `px-2`, rows 30px. Page gutters `px-6 md:px-12 xl:px-24` (`PAGE_X`); narrow pages 708px (`NARROW`).
-  Page header top 32/48px, emoji 48/78px.
+  Page header top 32/48px.
 - Radius: 4px (buttons, tags, inputs, blocks, callouts), 6px (sidebar rows, toast), 12px (landing preview, mobile sheet).
 - No shadows on the canvas except Notion cards. Shadows:
   `card` `0 0 0 1px rgba(15,15,15,.1), 0 2px 4px rgba(15,15,15,.1)` (deadline cards, landing preview) ·
@@ -114,8 +114,8 @@ Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum
 - **Sidebar**: workspace row (20px dark square with initial + “{name}’s AliveLine”); nav rows with grey icons, active row
   `bg-hover` + `text`; `MiniMonth` (week row highlighted, deadline dots, today red); **Today** section (status dot · title ·
   hours) — the core answer; **Courses** with Notion checkboxes in course colour (click toggles visibility); **Log out** at bottom.
-- **TopBar**: breadcrumbs (page emoji + page name / current period). Mobile: menu button left.
-- **PageHeader**: emoji icon, title, grey description.
+- **TopBar**: breadcrumbs (page line icon + page name / current period). Mobile: menu button left.
+- **PageHeader**: title, grey description (no icon).
 - **View bar**: tabs `Week` (W) / `List` (L), blue `+ New` (N). Week toolbar below: period title 14/600 left, `‹ Today ›` ghost right.
 - **WeekGrid**: 7 columns, top hairline, column hairlines, weekend `bg-weekend`; header `Mon` + date number, today in a 24px
   red circle; past blocks `opacity .6`. 3-day scroll-snap under 768px.
@@ -155,6 +155,6 @@ Text ≥ 4.5:1 (tag palettes chosen for it). Status never colour-only: tag text 
 `role="list"`; view bar is a `tablist`; peek is a dialog with focus trap; everything reachable by Tab.
 
 ## 9. Don'ts
-No Notion name, logo or illustrations · emoji only as page icons (header + breadcrumb), never as buttons/controls (inline SVG 16px, 1.5px stroke) ·
+No Notion name, logo or illustrations · **no emoji anywhere in the UI or UI copy** (product owner's rule): icons are inline SVG 16px, 1.5px stroke ·
 no gradients · no canvas shadows except Notion cards · one accent (blue) · no full-page modals for editing (use the peek) ·
 no colours or sizes outside this file.
