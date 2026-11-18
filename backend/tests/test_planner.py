@@ -25,7 +25,7 @@ def test_single_item_fits_as_late_as_possible_in_sessions():
 
 def test_without_interleave_one_task_fills_the_day():
     p = plan([PlanItem(1, d(10), 4)], interleave=False)
-    assert p.on(d(9)) == [(1, 3)] and p.on(d(8)) == [(1, 1)]
+    assert p.on(d(9)) == [(1, 2.5)] and p.on(d(8)) == [(1, 1.5)]  # never a piece under 1.5 h
 
 
 def test_session_cap_is_exceeded_only_when_the_deadline_needs_it():
@@ -37,8 +37,8 @@ def test_session_cap_is_exceeded_only_when_the_deadline_needs_it():
 def test_days_mix_tasks_instead_of_one_long_block():
     items = [PlanItem(1, d(3), 3), PlanItem(2, d(3), 3)]
     mixed = plan(items, buffer_days=0)
-    assert mixed.on(d(3)) == [(1, 2), (2, 1)]
-    assert mixed.on(d(2)) == [(1, 1), (2, 2)]
+    assert mixed.on(d(3)) == [(1, 1.5), (2, 1.5)]
+    assert mixed.on(d(2)) == [(1, 1.5), (2, 1.5)]
     blocks = plan(items, buffer_days=0, interleave=False)
     assert blocks.on(d(3)) == [(1, 3)] and blocks.on(d(2)) == [(2, 3)]
 
@@ -46,7 +46,8 @@ def test_days_mix_tasks_instead_of_one_long_block():
 def test_earlier_deadline_keeps_its_day_and_comes_first_within_it():
     items = [PlanItem(2, d(5), 6), PlanItem(1, d(4), 3)]
     p = plan(items, buffer_days=0)
-    assert p.on(d(4)) == [(1, 2), (2, 1)]  # most urgent listed first
+    assert p.on(d(4)) == [(1, 1.5), (2, 1.5)]  # most urgent listed first
+    assert p.on(d(2)) == [(2, 2.5)]  # 2 h + 0.5 h leftover would be a crumb → one 2.5 h piece
     assert p.windows[1].start_date == d(3) and p.windows[2].start_date == d(2)
     assert not any(w.at_risk for w in p.windows.values())
 
@@ -74,6 +75,20 @@ def test_overdue_is_at_risk_and_takes_no_days():
     w = p.windows[1]
     assert w.status == Status.CRITICAL and w.at_risk and w.shortfall_hours == 2 and w.start_date == TODAY
     assert p.daily == {}
+
+
+def test_no_pieces_below_min_session_unless_forced():
+    p = plan([PlanItem(1, d(10), 2.5)])
+    assert p.on(d(9)) == [(1, 2.5)]  # cap 2 exceeded a little instead of a 0.5 h crumb
+    small = plan([PlanItem(1, d(10), 1)])
+    assert small.on(d(9)) == [(1, 1)]  # a task smaller than the minimum is fine
+    fine = plan([PlanItem(1, d(10), 4)], min_session_hours=0.5, max_session_hours=1)
+    assert [h for day in sorted(fine.daily) for _, h in fine.on(day)] == [1, 1, 1, 1]
+    # 0.5 h free on each of 3 days: only crumbs fit, and the deadline needs them
+    forced = planner.plan(
+        [PlanItem(1, d(2), 1.5)], PlanSettings(buffer_days=0, weekday_hours=(0.5,) * 7), TODAY
+    )
+    assert not forced.windows[1].at_risk and len(forced.daily) == 3
 
 
 def test_weekday_hours_skip_days_off():

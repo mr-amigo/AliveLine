@@ -75,7 +75,7 @@ def test_waitlist_is_idempotent(client):
 
 def test_planning_settings(signed_in):
     me = signed_in.get("/api/auth/me").json()
-    assert (me["weekday_hours"], me["max_session_hours"], me["interleave"]) == (None, 2.0, True)
+    assert (me["weekday_hours"], me["max_session_hours"], me["min_session_hours"], me["interleave"]) == (None, 2.0, 1.5, True)
     week = [3, 3, 3, 3, 2, 0, 0]
     r = signed_in.patch("/api/settings", json={"weekday_hours": week, "max_session_hours": 1.5, "interleave": False})
     assert r.status_code == 200
@@ -83,7 +83,7 @@ def test_planning_settings(signed_in):
     days = signed_in.get("/api/plan", params={"from": "2026-11-16", "days": 7}).json()["days"]
     assert [day["capacity"] for day in days] == week
     for bad in ({"weekday_hours": [0] * 7}, {"weekday_hours": [3] * 6}, {"weekday_hours": [13] + [3] * 6},
-                {"max_session_hours": 0.3}, {"max_session_hours": 9}):
+                {"max_session_hours": 0.3}, {"max_session_hours": 9}, {"min_session_hours": 5}):
         assert signed_in.patch("/api/settings", json=bad).status_code == 422, bad
     # explicit null → same hours every day again; other fields untouched
     r = signed_in.patch("/api/settings", json={"weekday_hours": None})
@@ -101,5 +101,6 @@ def test_add_missing_columns_adds_new_user_columns():
         for col in ("weekday_hours", "max_session_hours", "interleave"):
             conn.execute(text(f"ALTER TABLE users DROP COLUMN {col}"))
     assert sorted(add_missing_columns(eng)) == ["users.interleave", "users.max_session_hours", "users.weekday_hours"]
+    # min_session_hours exists here (create_all); production gets it from the same helper
     assert {"interleave", "max_session_hours"} <= {c["name"] for c in inspect(eng).get_columns("users")}
     assert add_missing_columns(eng) == []

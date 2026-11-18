@@ -32,6 +32,7 @@ class PlanSettings:
     buffer_days: int = 1
     weekday_hours: tuple[float, ...] | None = None  # Mon..Sun; None → `capacity` every day
     max_session_hours: float = 2.0  # preferred max of one task per day (soft)
+    min_session_hours: float = 1.5  # no smaller pieces unless the task is smaller or a deadline forces it
     interleave: bool = True  # False → no session cap: one task may fill a whole day
 
     def hours_on(self, day: date) -> float:
@@ -67,8 +68,10 @@ class WorkWindowPlanner:
     Earliest-first: an item fits iff the free hours up to its target cover it (earlier items only use days up
     to their own targets). Under overload the urgent items keep the days next to their targets (incl. today);
     an item that can't fit takes what is left in its window and is `at_risk` with `shortfall_hours`.
-    Session cap (soft): the first sweep takes at most `max_session_hours` of the item per day, so big tasks
-    spread over several days and days mix tasks; a second sweep ignores the cap only when the deadline needs it.
+    Sessions (soft): sweep 1 takes at most `max_session_hours` per day, so big tasks spread over days and days
+    mix tasks; sweep 2 drops the cap; sweep 3 drops the minimum piece size. Sweeps 1–2 never leave a piece
+    under `min_session_hours` (a 3 h task becomes 1.5 + 1.5, a 2.5 h task stays whole); later sweeps run only
+    when the deadline needs them.
     """
 
     def plan(self, items: list[PlanItem], settings: PlanSettings, today: date) -> Plan:
@@ -90,12 +93,13 @@ class WorkWindowPlanner:
             for i in range((last_day - today).days + 1)
         }
         cap = settings.max_session_hours if settings.interleave else math.inf
+        min_piece = min(settings.min_session_hours, cap)
         order = sorted(open_items, key=lambda it: (it[1], it[0].deadline, it[0].id))
         rank = {item.id: i for i, (item, _) in enumerate(order)}
 
         for item, target in order:
             hours = round_up_half(item.hours)
-            taken = self._place(free, today, target, hours, cap) if target >= today else {}
+            taken = self._place(free, today, target, hours, cap, min_piece) if target >= today else {}
             shortfall = round(hours - sum(taken.values()), 2)
             windows[item.id] = self._window(item, target, taken, shortfall, today)
             self._record(daily, item.id, taken)
@@ -105,14 +109,34 @@ class WorkWindowPlanner:
         return Plan(windows, daily)
 
     @staticmethod
-    def _place(free: dict[date, float], today: date, target: date, hours: float, cap: float) -> dict[date, float]:
-        """Takes up to `hours` latest-first from [today, target]; the cap applies in the first sweep only."""
+    def _piece(free_day: float, remaining: float, limit: float, min_piece: float) -> float:
+        """Hours to take on a day that has none of this task yet, keeping both this piece and the rest ≥ min_piece."""
+        take = min(free_day, remaining, limit)
+        rest = remaining - take
+        if 0 < rest < min_piece:
+            if take - (min_piece - rest) >= min_piece:
+                take -= min_piece - rest  # leave a full-size piece for another day
+            elif free_day >= remaining:
+                take = remaining  # small overflow: finish it here, over the cap
+            else:
+                return 0.0  # would leave a crumb: try another day
+        return take if take >= min(min_piece, remaining) else 0.0
+
+    def _place(
+        self, free: dict[date, float], today: date, target: date, hours: float, cap: float, min_piece: float
+    ) -> dict[date, float]:
+        """Takes up to `hours` latest-first from [today, target] in up to three sweeps (see class docstring)."""
         taken: dict[date, float] = {}
         remaining = hours
-        for limit in (cap, math.inf):
+        for limit, piece in ((cap, min_piece), (math.inf, min_piece), (math.inf, 0.0)):
             day = target
             while remaining > 0 and day >= today:
-                take = min(free.get(day, 0.0), remaining, limit - taken.get(day, 0.0))
+                free_day = free.get(day, 0.0)
+                if day in taken or piece == 0:
+                    # growing an existing piece never fragments
+                    take = min(free_day, remaining, limit - taken.get(day, 0.0))
+                else:
+                    take = self._piece(free_day, remaining, limit, piece)
                 if take > 0:
                     free[day] -= take
                     taken[day] = taken.get(day, 0.0) + take

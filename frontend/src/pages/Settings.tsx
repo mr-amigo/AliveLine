@@ -30,6 +30,7 @@ export default function Settings() {
   const [buffer, setBuffer] = useState(user?.buffer_days ?? 1)
   const [weekdays, setWeekdays] = useState<number[] | null>(user?.weekday_hours ?? null)
   const [session, setSession] = useState(user?.max_session_hours ?? 2)
+  const [minSession, setMinSession] = useState(user?.min_session_hours ?? 1.5)
   const [interleave, setInterleave] = useState(user?.interleave ?? true)
   const [busy, setBusy] = useState(false)
 
@@ -40,6 +41,7 @@ export default function Settings() {
       buffer !== user.buffer_days ||
       JSON.stringify(weekdays) !== JSON.stringify(user.weekday_hours) ||
       session !== user.max_session_hours ||
+      minSession !== user.min_session_hours ||
       interleave !== user.interleave)
   const setDay = (i: number, v: number) => setWeekdays((w) => (w ? w.map((h, j) => (j === i ? v : h)) : w))
 
@@ -56,6 +58,7 @@ export default function Settings() {
           buffer_days: buffer,
           weekday_hours: weekdays,
           max_session_hours: session,
+          min_session_hours: minSession,
           interleave,
         }),
       )
@@ -141,6 +144,10 @@ export default function Settings() {
               <Stepper label="session hours" value={session} onChange={setSession} min={0.5} max={8} step={0.5} />
             </Row>
           )}
+
+          <Row label="Shortest session" hint="Don’t split an assignment into pieces smaller than this, unless a deadline leaves no choice.">
+            <Stepper label="shortest session hours" value={minSession} onChange={setMinSession} min={0.5} max={4} step={0.5} />
+          </Row>
 
           <Row label="Safety buffer" hint="Aim to finish this many days before each real deadline.">
             <Stepper

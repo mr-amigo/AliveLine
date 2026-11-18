@@ -44,6 +44,7 @@ def plan_settings(user: User) -> PlanSettings:
         buffer_days=user.buffer_days,
         weekday_hours=tuple(user.weekday_hours) if user.weekday_hours else None,
         max_session_hours=user.max_session_hours,
+        min_session_hours=user.min_session_hours,
         interleave=user.interleave,
     )
 

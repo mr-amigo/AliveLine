@@ -9,6 +9,7 @@ export interface User {
   /** Mon..Sun study hours; null → daily_capacity_hours every day. */
   weekday_hours: number[] | null
   max_session_hours: number
+  min_session_hours: number
   interleave: boolean
   created_at: string
 }
@@ -30,6 +31,7 @@ export interface SettingsUpdate {
   buffer_days?: number
   weekday_hours?: number[] | null
   max_session_hours?: number
+  min_session_hours?: number
   interleave?: boolean
 }
 
