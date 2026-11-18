@@ -46,8 +46,9 @@ Makefile  aws-* deploy targets
 - Work windows/statuses are **computed on read**, never stored.
 - Errors: `HTTPException` with short `detail`; frontend shows `detail`. Never use 403 (CloudFront maps 403 → SPA index.html).
 - Type hints everywhere; small functions; docstring only where intent isn't obvious.
-- Secrets only via env (`SECRET_KEY`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `COOKIE_SECURE`). Never commit `.env`.
-- When implementing the Claude estimator, load the `claude-api` skill first. Model: `claude-haiku-5-5`.
+- Secrets only via env (`SECRET_KEY`, `DATABASE_URL`, `COOKIE_SECURE`; AWS keys in root `.env` for make). Never commit `.env` or `example/`.
+- Shared AWS account: only create/modify `aliveline-*` resources; never touch onetwothree/`meetings-*`.
+- When implementing the Claude estimator, load the `claude-api` skill first. Claude via **Amazon Bedrock** (`AnthropicBedrock`), model `us.anthropic.claude-haiku-5-5`, runs only in the AI Lambda (PLAN §5).
 - When building UI pages, load `frontend-design` skill once (phase 7), keep the design tokens in PLAN.md §8.
 
 ## Commands
@@ -57,4 +58,5 @@ uvicorn app.main:app --reload            # http://localhost:8000
 pytest -q
 cd frontend && npm install && npm run dev  # http://localhost:5173 (proxies /api → :8000)
 docker build -f infra/Dockerfile -t aliveline . && docker run -p 8000:8000 -e SECRET_KEY=dev aliveline
+make aws-deploy                          # full AWS deploy; make help lists aws-* targets
 ```

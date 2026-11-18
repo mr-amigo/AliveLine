@@ -21,7 +21,7 @@ Success metrics (from one-pager): 20 early-access signups in 7 days; 8 returning
 |---|---|
 | Visitor | UC1 Join early-access list (email) · UC2 Sign up |
 | Student | UC3 Sign in / sign out · UC4 Add assignment manually · UC5 Import Moodle calendar (.ics) · UC6 Get AI estimate and correct it · UC7 View plan (work windows, statuses, "today" list) · UC8 Edit / delete / mark done · UC9 Set daily capacity & buffer |
-| AI service (Claude) | Secondary actor in UC4/UC5/UC6 |
+| AI service (Claude on Amazon Bedrock) | Secondary actor in UC4/UC5/UC6 |
 | Moodle API | Future secondary actor (UC5b, stub only in v1) |
 
 Out of scope v1: notifications, mobile app, Moodle API sync (interface only), teams/sharing.
@@ -93,13 +93,13 @@ classDiagram
 ```
 
 Design decisions:
-- **Strategy** — `Estimator` (Claude vs heuristic); `get_estimator()` **factory** picks Claude if `ANTHROPIC_API_KEY` set, else heuristic. Claude errors/timeouts fall back to heuristic, so the app never breaks.
+- **Strategy** — `Estimator` (Claude vs heuristic); `get_estimator()` **factory** picks Claude when `BEDROCK_MODEL` is set (AI Lambda, local dev with AWS creds), else heuristic (main backend Lambda: in a VPC without internet). Claude errors/timeouts fall back to heuristic, so the app never breaks.
 - **Adapter** — `AssignmentSource` turns external formats (.ics now, Moodle API later) into `AssignmentDraft` dataclasses.
 - **Value objects** — `WorkWindow`, `Estimate`, `Plan` are frozen dataclasses; computed on read → no stale data.
 - **Service layer + DTOs** — routers thin, services own transactions, Pydantic schemas at the boundary.
 - **Dependency injection** — FastAPI `Depends(get_db)`, `Depends(current_user)`, `Depends(get_estimator)` (overridable in tests).
 - No repository layer (YAGNI: SQLAlchemy session is already a unit-of-work); services query directly.
-- No Alembic in v1: `Base.metadata.create_all()` on startup. Add Alembic only if schema changes after real users exist.
+- No Alembic in v1: `create_all()` on local startup and via `make aws-migrate` on AWS. It only adds **new tables**, so a column change on an existing table after real users exist needs Alembic (or a one-off SQL in a Lambda action).
 
 ## 4. Planning algorithm (domain/planner.py)
 
@@ -121,17 +121,21 @@ Rounding: hours to 0.5. Capacity validated 0.5–12, buffer 0–7.
 Required tests (tests/test_planner.py): single item fits; two overlapping items push the earlier one earlier; insufficient capacity → critical with unscheduled hours; overdue → critical; done → DONE; far deadline → can_wait; boundary for time_to_start.
 
 ## 5. Estimation (domain/estimation/)
-- `base.py`: `Estimate` dataclass, `Estimator` Protocol.
+- `base.py`: `Estimate` dataclass (hours, rationale, source), `Estimator` Protocol.
 - `heuristic.py`: keyword base hours (project 10, exam/test prep 6, essay 5, report/lab 4, homework/problem set 3, quiz 1, default 3) + `min(len(words)/150, 4)`; clamp 0.5–40; rationale explains the rule.
-- `claude.py`: anthropic SDK, model `claude-haiku-5-5`, timeout 15 s, max_tokens small; prompt: "Estimate focused hours a 1st–2nd year university student needs… return JSON {hours, rationale (≤ 1 sentence)}". Parse + clamp; any exception → heuristic. (Load `claude-api` skill before writing.)
-- Estimate runs on create when `user_hours` absent and on `POST /assignments/{id}/estimate`. On .ics import: estimate each new item (sequential, cap 30 per import; rest heuristic).
+- `claude.py`: `anthropic.AnthropicBedrock` (IAM role creds, region us-east-1), model `BEDROCK_MODEL=us.anthropic.claude-haiku-5-5`, timeout 15 s, small max_tokens; prompt: "Estimate focused hours a 1st–2nd year university student needs… return JSON {hours, rationale (≤ 1 sentence)}". Parse + clamp; any exception → heuristic. (Load `claude-api` skill before writing.) Input capped (title 200, description 4000 chars).
+- **Where it runs** (backend Lambda has no internet → no Bedrock):
+  - `api/ai.py`: `POST /api/ai/estimate {title, description?, course_name?}` → `Estimate`. Auth = verify our JWT cookie only (no DB). Served by a separate **AI Lambda** outside the VPC (`app/ai_handler.py`: tiny FastAPI app with this router + Mangum; same ECR image, command override); CloudFront routes `/api/ai/*` there. Locally the router is also mounted in `main.py`.
+  - Backend: `POST /assignments` / `PATCH` accept optional `estimate {hours, rationale, source}` from the client; if absent and no `user_hours` → heuristic on the server. Student's own data, so trusting the client estimate is fine.
+  - Frontend (phase 7): form calls `/api/ai/estimate` on "Estimate"/create and sends the result; after .ics import it estimates new items sequentially (cap 30) and PATCHes them.
+- Cost: Bedrock tokens only (Haiku, ~1k tokens per estimate); WAF rate limit + $5 budget guard it.
 
 ## 6. Import (domain/importers/)
 - `ics.py` using `icalendar`: for each `VEVENT` → `AssignmentDraft(title, description, deadline=DTEND or DTSTART, course=CATEGORIES or None, external_uid=UID)`.
   Clean Moodle titles: strip suffixes `" is due"`, `" closes"`, `" should be completed"`.
   Skip events whose deadline is > 30 days in the past.
-- Service upserts by `(user_id, external_uid)`: new → create (+estimate); existing → update deadline/description only (keep user_hours, done).
-- Response: `{created, updated, skipped}`.
+- Service upserts by `(user_id, external_uid)`: new → create (heuristic estimate); existing → update deadline/description only (keep user_hours, done, estimates).
+- Response: `{created, updated, skipped, created_ids}` (`created_ids` lets the frontend run AI estimates on new items).
 - `moodle.py`: `MoodleApiSource` raising `NotImplementedError` + docstring on how to plug a token later.
 - Test (tests/test_ics.py) with a small inline Moodle-style .ics fixture.
 
@@ -146,15 +150,15 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 | GET | /auth/me | ✓ | → `UserOut` (401 if no/invalid cookie) |
 | PATCH | /settings | ✓ | `{name?, daily_capacity_hours?, buffer_days?}` → `UserOut` |
 | GET | /plan | ✓ | → `{today, today_items:[{assignment_id,title,hours}], assignments:[AssignmentOut]}` |
-| POST | /assignments | ✓ | `{title, description?, course_name?, deadline, user_hours?}` → `AssignmentOut` |
-| PATCH | /assignments/{id} | ✓ | partial (incl. `user_hours`, `done`) → `AssignmentOut` |
+| POST | /assignments | ✓ | `{title, description?, course_name?, deadline, user_hours?, estimate?}` → `AssignmentOut` |
+| PATCH | /assignments/{id} | ✓ | partial (incl. `user_hours`, `done`, `estimate`) → `AssignmentOut` |
 | DELETE | /assignments/{id} | ✓ | → 204 |
-| POST | /assignments/{id}/estimate | ✓ | → `AssignmentOut` (re-run AI) |
-| POST | /import/ics | ✓ | multipart `file` (≤ 1 MB) → `{created, updated, skipped}` |
+| POST | /ai/estimate | ✓ (JWT only) | `{title, description?, course_name?}` → `{hours, rationale, source}` (AI Lambda) |
+| POST | /import/ics | ✓ | multipart `file` (≤ 1 MB) → `{created, updated, skipped, created_ids}` |
 
 `AssignmentOut = {id, title, description, course_name, deadline, source, ai_hours, ai_rationale, estimate_source, user_hours, effective_hours, done, window:{start_date, target_finish, status, unscheduled_hours} | null}`.
 Every mutation endpoint returns windows recomputed for the whole plan (simplest: frontend refetches `/plan` after mutations).
-Ownership: every assignment query filters by `user_id`; foreign id → 404.
+Ownership: every assignment query filters by `user_id`; foreign id → 404. **Never 403** (CloudFront maps 403 → SPA).
 
 Security: bcrypt (cost 12); JWT HS256, 7-day exp, claim `sub=user_id`; cookie httpOnly, SameSite=Lax, `Secure` when `COOKIE_SECURE=true`; generic "Invalid email or password"; email normalized lowercase; `SECRET_KEY` required when `ENV=prod`.
 
@@ -187,7 +191,9 @@ AWS, CloudFormation + Makefile (pattern from the course's reference project), re
 - **DB**: Aurora Serverless v2 PostgreSQL 16, min 0 ACU (auto-pause 5 min), private subnets, no NAT. `DB_NULL_POOL=true` so it can pause. `DATABASE_URL` and `SECRET_KEY` are resolved from Secrets Manager at deploy (`infra/backend.yaml`).
 - **Cost guard**: `AWS::Budgets::Budget` of $5/month → `BUDGET_EMAIL`.
 - **Make**: `make aws-deploy` (ecr → push → backend → migrate → frontend → publish); `aws-push aws-backend` / `aws-publish` for updates; root `.env` (git-ignored) holds AWS keys.
-- **Phase 5 note**: the Lambda is in a VPC with no internet, so it can't reach Bedrock. Options: a separate estimator Lambda outside the VPC behind CloudFront `/api/ai/*` (verifies our JWT; the reference project does this), or a Bedrock VPC interface endpoint (~$7/month). Decide in phase 5.
+- **AI Lambda** (phase 5, `infra/ai.yaml`): outside the VPC, same image with `ImageConfig.Command=app.ai_handler.handler`, IAM `bedrock:InvokeModel` on the Haiku inference profile, function URL; frontend stack gets optional `AiDomain` → behavior `/api/ai/*` (listed before `/api/*`).
+- **Ops via Lambda actions** (Aurora is private): `{"action":"migrate"}` → `make aws-migrate`; `{"action":"stats"}` → `make aws-stats` (phase 8).
+- **Account**: shared AWS account (keys from the reference project, root `.env`). Never touch `onetwothree`/`meetings-*` stacks; everything ours is `aliveline-*`. CloudFront Free plan: 3 per account, 1 used by onetwothree.
 - **Local**: `infra/Dockerfile` (node:22-slim build → python:3.12-slim, FastAPI serves `static/`) and `infra/docker-compose.yml` (app + postgres:16) stay for local runs.
 - CI (optional, phase 8): GitHub Action running `pytest` + `npm run build`.
 
@@ -214,39 +220,43 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - DoD: `npm run build` ok; locally sign up → land on /app → refresh keeps session → sign out.
 
 ### Phase 3 — Infra + deploy + README  (secures A & B)
-- [x] infra/Dockerfile, infra/docker-compose.yml (local)
-- [x] `docker build` + run locally → sign up works on :8000
+- [x] infra/Dockerfile, infra/docker-compose.yml (local); `docker build` + run → sign up works on :8000
 - [x] README.md per §10 (first version)
-- [x] AWS infra: infra/{backend-ecr,backend,frontend}.yaml, Dockerfile.lambda, lambda_handler.py, Makefile (replaces Render/Neon)
-- [ ] `make aws-deploy` (user's AWS keys in root .env); verify HTTPS sign up/sign in on CloudFront URL; put URL in README
-- DoD: live HTTPS URL, sign up/in works. Commit + push.
+- [x] AWS infra: infra/{backend-ecr,backend,frontend}.yaml, Dockerfile.lambda, lambda_handler.py, Makefile
+- [ ] root `.env`: AWS keys (from reference project) + `BUDGET_EMAIL=mr.amigo98797@gmail.com`; `make aws-deploy`
+- [ ] verify on CloudFront URL: health, sign up, refresh keeps session, sign out, sign in; put URL in README; push
+- DoD: live HTTPS URL, sign up/in works.
 
 ### Phase 4 — Assignments + planner (core domain)
-- [ ] models Course, Assignment; domain/planner.py; tests/test_planner.py (cases in §4)
-- [ ] services/assignment_service.py, services/plan_service.py; api/assignments.py, GET /plan
-- [ ] tests/test_assignments.py (CRUD, ownership 404, plan statuses)
-- DoD: tests green.
+- [ ] models Course, Assignment (incl. ai_hours, ai_rationale, estimate_source); domain/planner.py; tests/test_planner.py (cases in §4)
+- [ ] domain/estimation/{base,heuristic}.py (server default estimate); services/assignment_service.py, services/plan_service.py; api/assignments.py (accepts optional `estimate`), GET /plan
+- [ ] tests/test_assignments.py (CRUD, ownership 404, client estimate vs heuristic, plan statuses)
+- [ ] `make aws-push aws-backend aws-migrate`; smoke `/api/plan` on live
+- DoD: tests green; live API creates tables + returns plan.
 
-### Phase 5 — AI estimation
-- [ ] load `claude-api` skill; domain/estimation/{base,heuristic,claude}.py; factory in deps
-- [ ] wire into create + `/estimate`; tests with heuristic + fake estimator override
-- DoD: with key → real estimate + rationale; without key → heuristic; failures fall back.
+### Phase 5 — AI estimation (Claude on Bedrock)
+- [ ] load `claude-api` skill; domain/estimation/claude.py (AnthropicBedrock) + `get_estimator()` factory
+- [ ] api/ai.py (`POST /ai/estimate`, JWT-only auth), app/ai_handler.py; mount router in main.py for local
+- [ ] infra/ai.yaml + Makefile `aws-ai`; frontend.yaml `AiDomain` + `/api/ai/*` behavior
+- [ ] tests: heuristic, fake Claude client (JSON parse/clamp/fallback), /ai/estimate auth 401
+- DoD: live `/api/ai/estimate` returns Claude estimate + rationale; on error → heuristic.
 
 ### Phase 6 — .ics import
-- [ ] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py
-- [ ] tests/test_ics.py (parse, title cleanup, upsert)
-- DoD: real Moodle export imports with estimates.
+- [ ] domain/importers/{base,ics,moodle}.py; services/import_service.py; api/imports.py (returns `created_ids`)
+- [ ] tests/test_ics.py (parse, title cleanup, skip old, upsert keeps user fields)
+- DoD: real Moodle export imports on live.
 
 ### Phase 7 — Product UI
 - [ ] load `frontend-design` skill once; apply §8 tokens
-- [ ] Dashboard (TodayPanel, status sections, AssignmentCard), AssignmentForm (estimate + correction), Import page, polished Landing
-- [ ] responsive check, empty/loading/error states
+- [ ] Dashboard (TodayPanel, status sections, AssignmentCard), AssignmentForm (calls /ai/estimate, shows rationale, editable hours), Import page (+ AI pass over `created_ids`), polished Landing
+- [ ] responsive check, empty/loading/error states (incl. ~15 s Aurora wake-up: friendly "waking up" spinner)
+- [ ] `make aws-publish`
 - DoD: full flow on live site: sign up → import .ics → see start dates → correct hours → statuses update.
 
 ### Phase 8 — Finish
-- [ ] README final (screenshot, live URL, env table), optional GitHub Action CI
-- [ ] stats query snippet for metrics (waitlist count, returning users = users with LoginEvents on ≥ 2 distinct days)
-- [ ] final deploy + smoke test
+- [ ] Lambda action `stats` + `make aws-stats` (waitlist count, users, returning users = LoginEvents on ≥ 2 distinct days)
+- [ ] README final (screenshot, live URL, architecture, cost), GitHub Action CI (pytest + npm run build)
+- [ ] final `make aws-deploy` + smoke test
 
 ## Progress log
 - 2026-11-18 — Phase 0: plan written (CLAUDE.md, docs/PLAN.md, docs/ONE_PAGER.md).
@@ -254,3 +264,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 2 done: Vite/React/TS/Tailwind v4 shell; AuthContext, RequireAuth, Landing (+waitlist, preview card), SignIn/SignUp (shared AuthForm), Settings, Dashboard placeholder; ui.tsx primitives (Button, Field, Input, Alert, Card, Spinner). Build ok; SPA fallback verified via backend/static.
 - 2026-11-18 — Phase 3 (code) done: infra/{Dockerfile,render.yaml,docker-compose.yml}, .dockerignore, README. Image + compose (Postgres) smoke-tested: health, signup, me, SPA. Blueprint Path must be set to `infra/render.yaml`. Remaining: user deploys Neon + Render, then tick last box + add URL.
 - 2026-11-18 — Phase 3: switched deploy to AWS (reference-project pattern): CloudFront(S3 + /api→Lambda URL), Lambda container (Mangum), Aurora Serverless v2, Secrets Manager, $5 budget; Makefile aws-*. Render/Neon dropped. Lambda image tested locally via RIE (migrate/signup/me). Remaining: real deploy.
+- 2026-11-18 — Plan revised for AWS: AI via separate Bedrock Lambda (`/api/ai/*`, outside VPC, $0 idle) instead of in-backend Claude; client passes estimate to backend; ops via Lambda actions; shared account rules (don't touch onetwothree).

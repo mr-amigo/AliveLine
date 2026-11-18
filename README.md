@@ -90,7 +90,7 @@ Cost: close to $0 when idle. Lambda and CloudFront (flat-rate Free plan) are fre
 | `DB_NULL_POOL` | `false` | `true` on Lambda: no pooled connections, so Aurora can pause |
 | `COOKIE_SECURE` | `false` | `true` behind HTTPS (set on AWS) |
 | `APP_TZ` | `Europe/Kyiv` | Time zone for day-based planning |
-| `ANTHROPIC_API_KEY` | empty | Enables Claude estimates; heuristic fallback without it |
+| `BEDROCK_MODEL` | empty | Claude model on Bedrock (`us.anthropic.claude-haiku-5-5`), set on the AI Lambda; heuristic estimates without it (phase 5) |
 | `PORT` | `8000` | Port of the all-in-one container |
 
 ## Team
