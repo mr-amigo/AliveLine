@@ -115,7 +115,7 @@ Input: `items: list[PlanItem(id, deadline: date, hours: float, done: bool)]`, `c
    - `CRITICAL` if `unscheduled_hours > 0` (can't fit before deadline) or deadline already passed or `(deadline - today).days <= 1`.
    - `TIME_TO_START` if `start_date <= today + 1 day` (start today or tomorrow).
    - `CAN_WAIT` otherwise.
-8. Return `Plan(windows, daily)`; `daily[today]` powers the "Today" panel.
+8. Return `Plan(windows, daily)`; `daily[today]` powers the "Today" panel, `daily` sliced to the requested range powers the week grid (DESIGN.md §5).
 
 Rounding: hours to 0.5. Capacity validated 0.5–12, buffer 0–7.
 Required tests (tests/test_planner.py): single item fits; two overlapping items push the earlier one earlier; insufficient capacity → critical with unscheduled hours; overdue → critical; done → DONE; far deadline → can_wait; boundary for time_to_start.
@@ -149,7 +149,7 @@ Required tests (tests/test_planner.py): single item fits; two overlapping items 
 | POST | /auth/signout | ✓ | → 204, clears cookie |
 | GET | /auth/me | ✓ | → `UserOut` (401 if no/invalid cookie) |
 | PATCH | /settings | ✓ | `{name?, daily_capacity_hours?, buffer_days?}` → `UserOut` |
-| GET | /plan | ✓ | → `{today, today_items:[{assignment_id,title,hours}], assignments:[AssignmentOut]}` |
+| GET | /plan?from=YYYY-MM-DD&days=7 | ✓ | → `{today, capacity, today_items:[DayItem], days:[{date, items:[DayItem]}], assignments:[AssignmentOut]}`; `DayItem={assignment_id,title,course_name,hours,status}`; defaults: from = Monday of current week, days 7 (max 31) |
 | POST | /assignments | ✓ | `{title, description?, course_name?, deadline, user_hours?, estimate?}` → `AssignmentOut` |
 | PATCH | /assignments/{id} | ✓ | partial (incl. `user_hours`, `done`, `estimate`) → `AssignmentOut` |
 | DELETE | /assignments/{id} | ✓ | → 204 |
@@ -163,26 +163,23 @@ Ownership: every assignment query filters by `user_id`; foreign id → 404. **Ne
 Security: bcrypt (cost 12); JWT HS256, 7-day exp, claim `sub=user_id`; cookie httpOnly, SameSite=Lax, `Secure` when `COOKIE_SECURE=true`; generic "Invalid email or password"; email normalized lowercase; `SECRET_KEY` required when `ENV=prod`.
 
 ## 8. Frontend
+**Visual design, layout, components, tokens: [docs/DESIGN.md](DESIGN.md)** (Notion-Calendar-style, own brand). This section is only routes + code structure.
+
 Routes:
 | Path | Page | Notes |
 |---|---|---|
-| `/` | Landing | hero "Know when to start, not just when it's due", 3-step explainer, early-access form, CTA sign up. Redirect to /app if signed in |
-| `/signup`, `/signin` | Auth forms | inline validation, show API `detail` |
-| `/app` | Dashboard | "Today" panel (allocations), columns/sections Critical → Time to start → Can wait, Done collapsed; empty state with "Add" + "Import .ics" |
-| `/app/new`, `/app/a/:id` | Assignment form | title, course, deadline (datetime-local), description, AI estimate shown with rationale + editable hours, "Re-estimate", delete, mark done |
-| `/app/import` | Import | file input + instructions how to export Moodle calendar (.ics), result summary |
-| `/app/settings` | Settings | name, daily capacity slider, buffer days |
+| `/` | Landing | hero + static WeekGrid preview with demo data, 3 steps, early-access form, CTA. Redirect to /app if signed in |
+| `/signup`, `/signin` | Auth | centered column, inline validation, show API `detail` |
+| `/app` | Planner | App shell (Sidebar: MiniMonth, Today list, Courses; TopBar; Week/List view). `?week=YYYY-MM-DD`, `?view=list`. Drawer for assignment details (`?a=:id`, `?a=new`) |
+| `/app/import` | Import | in shell; dropzone, Moodle export steps, result + AI pass over `created_ids` |
+| `/app/settings` | Settings | in shell; name, daily capacity, buffer days |
 
 Structure: `api/client.ts` (fetch wrapper, `credentials:'include'`, throws `ApiError(detail)`), `api/types.ts` (mirrors §7),
-`auth/AuthContext.tsx` (user, signin, signup, signout, loading; calls `/auth/me` on boot), `auth/RequireAuth.tsx`,
-`components/` (Layout+Navbar, StatusBadge, AssignmentCard, TodayPanel, HoursInput, Button/Input/Field), `pages/` one file per route.
-Dates: `Intl.DateTimeFormat('en-GB')` + relative "in 3 days". Data refetch after each mutation (no state lib).
-
-Design tokens (keep consistent):
-- Mood: calm, focused, student-friendly; lots of white space; one accent.
-- Colors: bg `#FAFAF7`, text `#1C1C1E`, accent (brand "alive" green) `#16A34A`; statuses: can_wait slate `#64748B`, time_to_start amber `#D97706`, critical red `#DC2626`, done green muted.
-- Font: Inter (Google Fonts) fallback system-ui; radius 12px cards; subtle shadow; mobile-first, responsive.
-- Brand: logo text "Alive" + pulse-line icon (inline SVG) + "Line".
+`auth/AuthContext.tsx`, `auth/RequireAuth.tsx`,
+`components/shell/` (AppShell, Sidebar, MiniMonth, TopBar), `components/plan/` (WeekGrid, DayColumn, WorkBlock, DeadlineChip, ListView, TodayList, StatusDot),
+`components/assignment/` (AssignmentDrawer, EstimatePanel, HoursStepper), `components/ui/` (Button, Input, Field, Kbd, Toast, Spinner, Skeleton),
+`hooks/` (usePlan(week), useShortcuts), `lib/dates.ts` (week math in Europe/Kyiv, `Intl.DateTimeFormat('en-GB')`, relative "in 3 days"), `pages/` one file per route.
+State: URL params (week, view, open drawer) + refetch `/plan` after each mutation (no state lib).
 
 ## 9. Infra & deployment
 AWS, CloudFormation + Makefile (pattern from the course's reference project), region `us-east-1`.
@@ -229,7 +226,7 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 
 ### Phase 4 — Assignments + planner (core domain)
 - [ ] models Course, Assignment (incl. ai_hours, ai_rationale, estimate_source); domain/planner.py; tests/test_planner.py (cases in §4)
-- [ ] domain/estimation/{base,heuristic}.py (server default estimate); services/assignment_service.py, services/plan_service.py; api/assignments.py (accepts optional `estimate`), GET /plan
+- [ ] domain/estimation/{base,heuristic}.py (server default estimate); services/assignment_service.py, services/plan_service.py; api/assignments.py (accepts optional `estimate`), GET /plan with `from`/`days` range (§7)
 - [ ] tests/test_assignments.py (CRUD, ownership 404, client estimate vs heuristic, plan statuses)
 - [ ] `make aws-push aws-backend aws-migrate`; smoke `/api/plan` on live
 - DoD: tests green; live API creates tables + returns plan.
@@ -246,12 +243,15 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [ ] tests/test_ics.py (parse, title cleanup, skip old, upsert keeps user fields)
 - DoD: real Moodle export imports on live.
 
-### Phase 7 — Product UI
-- [ ] load `frontend-design` skill once; apply §8 tokens
-- [ ] Dashboard (TodayPanel, status sections, AssignmentCard), AssignmentForm (calls /ai/estimate, shows rationale, editable hours), Import page (+ AI pass over `created_ids`), polished Landing
-- [ ] responsive check, empty/loading/error states (incl. ~15 s Aurora wake-up: friendly "waking up" spinner)
+### Phase 7 — Product UI (docs/DESIGN.md)
+- [ ] load `frontend-design` skill once; tokens from DESIGN.md §2–4 into `index.css` `@theme`; Inter; ui primitives restyled (Button, Input, Kbd, Toast, Skeleton)
+- [ ] App shell: Sidebar (MiniMonth, TodayList, Courses), TopBar (Today, ‹ ›, title, Week|List, + New); routes per §8
+- [ ] WeekGrid (deadline row, height ∝ hours, capacity line, today column) + ListView (status sections); usePlan(week)
+- [ ] AssignmentDrawer: create/edit, EstimatePanel (calls /ai/estimate, rationale, HoursStepper), mark done, delete
+- [ ] Import page (dropzone, steps, AI pass over `created_ids`), Settings + Auth restyle, Landing with WeekGrid preview
+- [ ] keyboard shortcuts (DESIGN §7), responsive (§5: list + 3-day + bottom sheet on mobile), empty/loading/"waking up"/error states
 - [ ] `make aws-publish`
-- DoD: full flow on live site: sign up → import .ics → see start dates → correct hours → statuses update.
+- DoD: on live site: sign up → import .ics → week grid shows blocks/deadlines → correct hours in drawer → statuses update; works at 375px.
 
 ### Phase 8 — Finish
 - [ ] Lambda action `stats` + `make aws-stats` (waitlist count, users, returning users = LoginEvents on ≥ 2 distinct days)
@@ -266,3 +266,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 3: switched deploy to AWS (reference-project pattern): CloudFront(S3 + /api→Lambda URL), Lambda container (Mangum), Aurora Serverless v2, Secrets Manager, $5 budget; Makefile aws-*. Render/Neon dropped. Lambda image tested locally via RIE (migrate/signup/me). Remaining: real deploy.
 - 2026-11-18 — Plan revised for AWS: AI via separate Bedrock Lambda (`/api/ai/*`, outside VPC, $0 idle) instead of in-backend Claude; client passes estimate to backend; ops via Lambda actions; shared account rules (don't touch onetwothree).
 - 2026-11-18 — Phase 3 done: live at https://d2b7fp4wgl1dok.cloudfront.net (us-east-1, stacks aliveline-{backend-ecr,backend,frontend}). Smoke: health, SPA fallback, API 404 passes through, signup (Secure cookie), me, signout→401, signin. First deploy ~17 min.
+- 2026-11-18 — Design direction: Notion-Calendar-style (own brand) → docs/DESIGN.md; §8 now routes/structure only; /plan returns a week range for WeekGrid; phase 7 rewritten.

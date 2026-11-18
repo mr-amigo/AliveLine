@@ -4,7 +4,7 @@ AI planner for UCU students: collects deadlines, estimates hours per assignment 
 computes a **work window** (start date + target finish) and status
 (`can_wait` / `time_to_start` / `critical` / `done`). Tells students **when to start**, not when it's due.
 
-Full design (domain model, API, algorithm, phases): **docs/PLAN.md**. Product one-pager: docs/ONE_PAGER.md.
+Full design (domain model, API, algorithm, phases): **docs/PLAN.md**. UI design system: **docs/DESIGN.md**. Product one-pager: docs/ONE_PAGER.md.
 
 ## Session workflow (token budget is tight — Claude Pro)
 1. Open docs/PLAN.md → find first unchecked phase in "Phases". Read only the sections that phase references.
@@ -34,7 +34,8 @@ backend/app/
   api/               thin routers: auth, assignments, imports, settings, waitlist, health
 backend/tests/
 frontend/src/
-  api/ (client.ts, types.ts)  auth/ (AuthContext, RequireAuth)  pages/  components/
+  api/ (client.ts, types.ts)  auth/ (AuthContext, RequireAuth)  pages/  hooks/  lib/
+  components/ (shell/, plan/, assignment/, ui/)  — see PLAN §8
 infra/  backend-ecr.yaml backend.yaml frontend.yaml Dockerfile.lambda Dockerfile docker-compose.yml
 Makefile  aws-* deploy targets
 ```
@@ -49,7 +50,7 @@ Makefile  aws-* deploy targets
 - Secrets only via env (`SECRET_KEY`, `DATABASE_URL`, `COOKIE_SECURE`; AWS keys in root `.env` for make). Never commit `.env` or `example/`.
 - Shared AWS account: only create/modify `aliveline-*` resources; never touch onetwothree/`meetings-*`.
 - When implementing the Claude estimator, load the `claude-api` skill first. Claude via **Amazon Bedrock** (`AnthropicBedrock`), model `us.anthropic.claude-haiku-5-5`, runs only in the AI Lambda (PLAN §5).
-- When building UI pages, load `frontend-design` skill once (phase 7), keep the design tokens in PLAN.md §8.
+- UI: follow **docs/DESIGN.md** (tokens, layout, components). Load `frontend-design` skill once (phase 7). Don't invent new colours/sizes outside DESIGN.md.
 
 ## Commands
 ```
