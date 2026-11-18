@@ -145,8 +145,12 @@ Helvetica, "Apple Color Emoji", Arial, sans-serif`. No web font. Numbers: `.tnum
 - **Auth**: 320px column, logo, bold title + grey bold subtitle (24px), inputs, full-width 36px blue button, blue underlined link.
 - **Settings**: narrow page, “My plan” heading with hairline, rows label 14 + grey hint, control right.
 - **Import**: narrow page, numbered list (16px), dashed dropzone 120px, counters row, AI progress line, callouts.
-- **Landing**: white, 64px bold headline, 20px grey sub, blue + outlined CTAs, live `WeekGrid` preview in a 12px-radius card,
-  three steps, early-access form, footer.
+- **Landing**: white, 64px bold headline (40 mobile), 20px grey sub (16 mobile), blue + outlined CTAs above the fold at 375px,
+  live `WeekGrid` preview in a 12px-radius card, three steps, early-access form (success → `/thanks`), footer.
+  Under 768px a fixed bottom bar with the blue CTA slides in once the hero buttons scroll away.
+- **Public layout** (`SiteLayout`): logo header with Sign in / Get started (Open planner when signed in); footer with Privacy ·
+  Terms · Contact · email. Text pages (Privacy, Terms, Contact, Thanks, 404) = 756px column, 40px title, 16/1.6 body, 20px h2.
+- **Meta**: `usePageMeta(title, description)` per route → “Title · AliveLine”; favicon svg + png 32/180; OG image 1200×630.
 
 ### Responsive
 ≥ 1024 full shell · < 1024 sidebar opens as overlay from the menu button · < 768 list view default, Week swipes 3 days,

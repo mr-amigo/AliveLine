@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import AuthForm from '../components/AuthForm'
 import { Field, Input } from '../components/ui'
 
 export default function SignIn() {
+  usePageMeta('Sign in', 'Sign in to AliveLine and see what to work on today.')
   const { signIn } = useAuth()
   const navigate = useNavigate()
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/app'

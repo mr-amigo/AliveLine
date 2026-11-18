@@ -1,10 +1,11 @@
-import { useMemo, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
-import { waitlistApi } from '../api/client'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { ApiError, waitlistApi } from '../api/client'
 import type { Assignment, Day, DayItem, Status } from '../api/types'
-import Logo from '../components/Logo'
+import SiteLayout from '../components/SiteLayout'
 import WeekGrid from '../components/plan/WeekGrid'
-import { Alert, Button, Input } from '../components/ui'
+import { Button, Input } from '../components/ui'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { addDays, kyivToUtcIso, todayKyiv } from '../lib/dates'
 
 const steps = [
@@ -55,56 +56,76 @@ function demoPlan(today: string): { days: Day[]; assignments: Assignment[] } {
 }
 
 function WaitlistForm() {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
-  const [state, setState] = useState<'idle' | 'busy' | 'done' | 'error'>('idle')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    setState('busy')
+    setBusy(true)
+    setError(null)
     try {
-      await waitlistApi.join(email)
-      setState('done')
-    } catch {
-      setState('error')
+      await waitlistApi.join(email.trim())
+      navigate('/thanks')
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'That didn’t go through. Check your connection and try again.')
+      setBusy(false)
     }
   }
 
-  if (state === 'done') return <Alert kind="success">You're on the list. We'll email you when your invite is ready.</Alert>
   return (
-    <form onSubmit={submit} className="space-y-2">
+    <form onSubmit={submit} className="space-y-2" aria-describedby={error ? 'waitlist-error' : undefined}>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@ucu.edu.ua" aria-label="Email" />
-        <Button type="submit" variant="secondary" loading={state === 'busy'}>Get early access</Button>
+        <Input
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@ucu.edu.ua"
+          aria-label="Email for early access"
+          aria-invalid={!!error}
+        />
+        <Button type="submit" variant="secondary" loading={busy}>Get early access</Button>
       </div>
-      {state === 'error' && <p className="text-meta text-critical-text">That email didn't go through. Check it and try again.</p>}
+      {error && <p id="waitlist-error" role="alert" className="text-meta text-critical-text">{error}</p>}
     </form>
   )
 }
 
+/** Fixed bottom CTA on phones once the hero buttons scroll away. */
+function useHeroOutOfView() {
+  const ref = useRef<HTMLDivElement>(null)
+  const [out, setOut] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !('IntersectionObserver' in window)) return
+    const io = new IntersectionObserver(([e]) => setOut(!e.isIntersecting && e.boundingClientRect.top < 0))
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+  return { ref, out }
+}
+
 export default function Landing() {
+  usePageMeta(null)
   const today = todayKyiv()
   const demo = useMemo(() => demoPlan(today), [today])
+  const hero = useHeroOutOfView()
 
   return (
-    <div className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center px-6 py-5">
-        <Logo />
-        <div className="ml-auto flex gap-2">
-          <Link to="/signin"><Button variant="ghost">Sign in</Button></Link>
-          <Link to="/signup"><Button>Get started</Button></Link>
-        </div>
-      </header>
-
+    <SiteLayout footerClassName="pb-28 md:pb-8">
       <main className="mx-auto max-w-6xl px-6">
-        <section className="max-w-2xl pb-12 pt-12 md:pt-20">
+        <section className="max-w-2xl pb-10 pt-4 md:pb-12 md:pt-20">
           <h1 className="text-[40px] font-bold leading-[1.1] tracking-[-0.02em] md:text-[64px]">
-            Know when to start, not just when it's due.
+            Know when to start, not just when it’s due.
           </h1>
-          <p className="mt-5 max-w-xl text-title font-medium text-text-2">
+          <p className="mt-4 max-w-xl text-section font-medium text-text-2 md:mt-5 md:text-title">
             Moodle shows the deadline. AliveLine estimates the hours each assignment takes and spreads them over your
             week, so you always know what to open today.
           </p>
-          <div className="mt-8 flex flex-wrap gap-2">
+          <div ref={hero.ref} className="mt-6 flex flex-wrap gap-2 md:mt-8">
             <Link to="/signup"><Button className="h-10 rounded-md px-5 text-section">Create free account</Button></Link>
             <Link to="/signin"><Button variant="secondary" className="h-10 rounded-md px-5 text-section">Sign in</Button></Link>
           </div>
@@ -133,15 +154,22 @@ export default function Landing() {
         <section className="grid gap-6 border-t border-line py-16 md:grid-cols-2 md:items-center">
           <div>
             <h2 className="text-h1 font-bold">Early access for UCU students</h2>
-            <p className="mt-1 text-body text-text-2">We're testing with first- and second-year students. Leave your email and we'll send an invite.</p>
+            <p className="mt-1 text-body text-text-2">We’re testing with first- and second-year students. Leave your email and we’ll send an invite.</p>
           </div>
           <WaitlistForm />
         </section>
       </main>
 
-      <footer className="mx-auto max-w-6xl border-t border-line px-6 py-8 text-meta text-text-2">
-        AliveLine · Artem Serhiichuk, Ostap Sukhomlyn, Andrii Antoniuk · UCU {new Date().getFullYear()}
-      </footer>
-    </div>
+      <div
+        aria-hidden={!hero.out}
+        className={`fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg px-4 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] transition-transform duration-[180ms] md:hidden ${
+          hero.out ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        <Link to="/signup" tabIndex={hero.out ? 0 : -1} className="block">
+          <Button tabIndex={-1} className="h-10 w-full rounded-md text-section">Create free account</Button>
+        </Link>
+      </div>
+    </SiteLayout>
   )
 }

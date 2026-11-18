@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { Link } from 'react-router-dom'
 import { ApiError } from '../api/client'
 import ListView from '../components/plan/ListView'
@@ -16,6 +17,7 @@ import { CAL_VIEWS, hoursLabel, kyivDate, rangeTitle, relative, shiftView, VIEW_
 const SHORTCUT: Record<CalView, string> = { day: 'D', '3day': '3', week: 'W', month: 'M' }
 
 export default function Planner() {
+  usePageMeta('Planner')
   const s = useShell()
   const { view } = s
   const calendar = view !== 'list'

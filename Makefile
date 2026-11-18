@@ -109,12 +109,14 @@ aws-frontend: ## Create/update S3 + CloudFront (/api/ai/* → AI Lambda, /api/* 
 	  --tags $(TAGS) --no-fail-on-empty-changeset \
 	  --parameter-overrides ProjectName=$(PROJECT) ApiDomain=$$api "AiDomain=$$ai" PricingPlan=$(CLOUDFRONT_PLAN)
 
-aws-publish: ## Build the SPA, upload it to S3, invalidate CloudFront
+aws-publish: ## Build the SPA (VITE_GOATCOUNTER from .env), upload to S3, invalidate CloudFront
 	@bucket=$$($(call out,$(FRONTEND_STACK),BucketName)); dist=$$($(call out,$(FRONTEND_STACK),DistributionId)); \
 	test -n "$$bucket" || { echo "Run make aws-frontend first"; exit 1; }; \
 	(cd frontend && npm ci --no-audit --no-fund && npm run build) && \
-	aws s3 sync frontend/dist "s3://$$bucket" --delete --exclude index.html \
+	aws s3 sync frontend/dist/assets "s3://$$bucket/assets" --delete \
 	  --cache-control "public,max-age=31536000,immutable" && \
+	aws s3 sync frontend/dist "s3://$$bucket" --delete --exclude "assets/*" --exclude index.html \
+	  --cache-control "public,max-age=3600" && \
 	aws s3 cp frontend/dist/index.html "s3://$$bucket/index.html" --cache-control "no-cache" && \
 	aws cloudfront create-invalidation --distribution-id "$$dist" --paths "/*" --query Invalidation.Id --output text
 

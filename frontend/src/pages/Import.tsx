@@ -1,4 +1,5 @@
 import { useRef, useState, type DragEvent } from 'react'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { Link } from 'react-router-dom'
 import { ApiError, importApi, planApi } from '../api/client'
 import type { ImportResult } from '../api/types'
@@ -18,6 +19,7 @@ type Phase =
   | { kind: 'error'; message: string }
 
 export default function Import() {
+  usePageMeta('Import')
   const { range, reload } = useShell()
   const input = useRef<HTMLInputElement>(null)
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' })

@@ -1,8 +1,11 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth/AuthContext'
 import RequireAuth from './auth/RequireAuth'
 import AppShell from './components/shell/AppShell'
+import { countPage } from './lib/analytics'
 import Import from './pages/Import'
+import { Contact, Privacy, Terms, Thanks } from './pages/Info'
 import Landing from './pages/Landing'
 import NotFound from './pages/NotFound'
 import Planner from './pages/Planner'
@@ -18,11 +21,18 @@ function PublicOnly({ children }: { children: JSX.Element }) {
 }
 
 export default function App() {
+  const { pathname } = useLocation()
+  useEffect(() => countPage(pathname), [pathname])
+
   return (
     <Routes>
       <Route path="/" element={<PublicOnly><Landing /></PublicOnly>} />
       <Route path="/signin" element={<PublicOnly><SignIn /></PublicOnly>} />
       <Route path="/signup" element={<PublicOnly><SignUp /></PublicOnly>} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/contact" element={<Contact />} />
+      <Route path="/thanks" element={<Thanks />} />
       <Route path="/app" element={<RequireAuth><AppShell /></RequireAuth>}>
         <Route index element={<Planner />} />
         <Route path="import" element={<Import />} />

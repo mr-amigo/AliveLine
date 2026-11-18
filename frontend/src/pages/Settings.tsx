@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { ApiError, settingsApi } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { useShell } from '../components/shell/AppShell'
@@ -22,6 +23,7 @@ function Row({ label, hint, htmlFor, children }: { label: string; hint: string; 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 export default function Settings() {
+  usePageMeta('Settings')
   const { user, setUser } = useAuth()
   const { reload } = useShell()
   const toast = useToast()

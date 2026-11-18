@@ -1,14 +1,19 @@
 import { Link } from 'react-router-dom'
+import SiteLayout, { TextPage } from '../components/SiteLayout'
 import { Button } from '../components/ui'
+import { usePageMeta } from '../hooks/usePageMeta'
 
 export default function NotFound() {
+  usePageMeta('Page not found')
   return (
-    <div className="grid min-h-screen place-items-center px-4 text-center">
-      <div>
-        <p className="text-page font-bold">404</p>
-        <p className="mt-2 text-text-2">This page doesn't exist.</p>
-        <Link to="/" className="mt-6 inline-block"><Button>Go home</Button></Link>
-      </div>
-    </div>
+    <SiteLayout>
+      <TextPage title="Page not found">
+        <p className="text-text-2">This page doesn’t exist or has moved. Check the address, or go back to the start.</p>
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Link to="/"><Button>Go home</Button></Link>
+          <Link to="/app"><Button variant="secondary">Open planner</Button></Link>
+        </div>
+      </TextPage>
+    </SiteLayout>
   )
 }

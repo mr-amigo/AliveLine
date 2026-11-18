@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import { usePageMeta } from '../hooks/usePageMeta'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import AuthForm from '../components/AuthForm'
 import { Field, Input } from '../components/ui'
 
 export default function SignUp() {
+  usePageMeta('Create account', 'Create a free AliveLine account: import Moodle deadlines and get a plan for when to start.')
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')
