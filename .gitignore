@@ -228,3 +228,5 @@ node_modules/
 backend/static/
 example/
 .DS_Store
+# personal calendar exports
+*.ics

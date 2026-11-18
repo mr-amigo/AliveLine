@@ -9,7 +9,7 @@ _RULES: list[tuple[str, tuple[str, ...], float]] = [
     ("essay", ("essay", "есе", "реферат"), 5),
     ("report/lab", ("report", "lab", "звіт", "лаб"), 4),
     ("homework", ("homework", "problem set", "hw", "assignment", "домашн", "завдання"), 3),
-    ("quiz", ("quiz", "тест-квіз", "квіз"), 1),
+    ("quiz", ("quiz", "квіз", "тест"), 1),
 ]
 _DEFAULT_KIND, _DEFAULT_HOURS = "task", 3.0
 _WORDS_PER_EXTRA_HOUR = 150

@@ -3,7 +3,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.domain.importers import IcsSource, InvalidSourceError, MoodleApiSource, clean_title
+from app.domain.importers import IcsSource, InvalidSourceError, MoodleApiSource, clean_course, clean_title, is_skipped_event
 
 KYIV = ZoneInfo("Europe/Kyiv")
 NOW = datetime.now(timezone.utc)
@@ -37,6 +37,7 @@ def moodle_export(lab_days: int = 7, lab_desc: str = "Implement the REST API and
               "CATEGORIES:Philosophy\r\n"),
         event("3@moodle.ucu.edu.ua", "Quiz 2 opens", f"DTSTART:{stamp(2)}"),
         event("4@moodle.ucu.edu.ua", "Old homework is due", f"DTSTART:{stamp(-60)}"),
+        event("5@moodle.ucu.edu.ua", "Строк Seminar 7 спливає", f"DTSTART:{stamp(-2)}"),
     )
 
 
@@ -51,12 +52,27 @@ def test_clean_title():
     assert clean_title("Final quiz closes") == "Final quiz"
     assert clean_title("«Звіт» має бути виконано") == "Звіт"
     assert clean_title("Project") == "Project"
+    # real UCU Moodle export patterns
+    assert clean_title("Строк Lab Assignment 3 спливає") == "Lab Assignment 3"
+    assert clean_title("Quiz 11 закрито") == "Quiz 11"
+    assert clean_title("L8: Descriptive analysis of data слід заповнити") == "L8: Descriptive analysis of data"
+    assert clean_title("Palindrome contest submission is due") == "Palindrome contest"
+    assert clean_title("File-&gt;Server placement contest submission is due") == "File->Server placement contest"
+    assert clean_title("Есе на тему: «Як ідеї змінюють світ?» спливає") == "Есе на тему: «Як ідеї змінюють світ?»"
+
+
+def test_skipped_events_and_course_cleanup():
+    assert is_skipped_event("Quiz 2 opens") and is_skipped_event("Self-test for topic 11 доступно")
+    assert is_skipped_event("Відвідування лекції 7 слід заповнити")
+    assert not is_skipped_event("Строк Seminar 9 спливає")
+    assert clean_course("Об'єктно-орієнтований аналіз та дизайн (1.26-27.)") == "Об'єктно-орієнтований аналіз та дизайн"
+    assert clean_course("БЗВП") == "БЗВП"
 
 
 def test_parse_moodle_export():
     drafts = IcsSource(KYIV).parse(moodle_export())
     by_uid = {d.external_uid: d for d in drafts}
-    assert set(by_uid) == {"1@moodle.ucu.edu.ua", "2@moodle.ucu.edu.ua", "4@moodle.ucu.edu.ua"}  # "opens" skipped
+    assert set(by_uid) == {"1@moodle.ucu.edu.ua", "2@moodle.ucu.edu.ua", "4@moodle.ucu.edu.ua", "5@moodle.ucu.edu.ua"}
     lab = by_uid["1@moodle.ucu.edu.ua"]
     assert (lab.title, lab.course, lab.description) == ("Lab 3", "OOAD", "Implement the REST API and write tests")
     assert lab.deadline.tzinfo is not None
@@ -89,7 +105,7 @@ def test_import_creates_skips_and_estimates(signed_in):
     r = upload(signed_in, moodle_export())
     assert r.status_code == 200, r.text
     body = r.json()
-    assert (body["created"], body["updated"], body["skipped"]) == (2, 0, 1)
+    assert (body["created"], body["updated"], body["skipped"]) == (2, 0, 2)  # past deadlines skipped
     assert len(body["created_ids"]) == 2
 
     plan = signed_in.get("/api/plan").json()
@@ -105,7 +121,7 @@ def test_reimport_updates_deadline_and_keeps_student_fields(signed_in):
     signed_in.patch(f"/api/assignments/{lab_id}", json={"user_hours": 9, "done": True})
 
     again = upload(signed_in, moodle_export(lab_days=9, lab_desc="Updated brief")).json()
-    assert (again["created"], again["updated"], again["skipped"]) == (0, 2, 1)
+    assert (again["created"], again["updated"], again["skipped"]) == (0, 2, 2)
 
     lab = next(a for a in signed_in.get("/api/plan").json()["assignments"] if a["id"] == lab_id)
     assert lab["user_hours"] == 9 and lab["done"] is True and lab["description"] == "Updated brief"

@@ -1,7 +1,7 @@
 """Upserts drafts from an AssignmentSource into the user's assignments."""
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -11,7 +11,6 @@ from app.domain.importers import AssignmentDraft, AssignmentSource
 from app.models import Assignment, User
 from app.services.assignment_service import AssignmentService
 
-SKIP_OLDER_THAN = timedelta(days=30)
 
 
 @dataclass
@@ -24,6 +23,8 @@ class ImportResult:
 
 class ImportService:
     """New drafts → assignments with a heuristic estimate (AI runs later from the client, per item).
+    New drafts whose deadline has already passed are skipped: Moodle exports weeks of history, and
+    importing it would flood the plan with "critical" overdue items the student has long handed in.
     Known drafts (same external uid) → only deadline/description/course refresh; the student's
     corrections (user_hours, done, estimates) are kept."""
 
@@ -42,13 +43,15 @@ class ImportService:
 
         for draft in drafts:
             uid = draft.external_uid or ""
-            if draft.deadline < now - SKIP_OLDER_THAN or uid in seen:
+            if uid in seen:
                 result.skipped += 1
                 continue
             seen.add(uid)
             if uid in existing:
                 self._refresh(existing[uid], draft)
                 result.updated += 1
+            elif draft.deadline < now:
+                result.skipped += 1
             else:
                 created.append(self._create(draft, kind))
 
