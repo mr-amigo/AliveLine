@@ -121,8 +121,9 @@ Rounding: hours to 0.5. Capacity validated 0.5–12, buffer 0–7.
 Required tests (tests/test_planner.py): single item fits; two overlapping items push the earlier one earlier; insufficient capacity → critical with unscheduled hours; overdue → critical; done → DONE; far deadline → can_wait; boundary for time_to_start.
 
 ### §4 v2 (phase 9) — sessions, interleaving, priorities
-- **Session cap**: at most `max_session_hours` (default 2) of one task on one day. A task needing more than that is spread across several days; with spare days it is spread evenly rather than packed at the end.
-- **Interleaving**: a day holds several tasks in short sessions (e.g. 2 h maths + 1 h physics) instead of one long block; ordering within a day by urgency.
+- **Session cap is soft**: prefer at most `max_session_hours` (default 2) of one task per day; spread a big task across days, evenly when there is slack. Only when that cannot meet the deadline does the planner exceed the cap (up to the day's capacity), so a task is never marked at risk just because of the cap.
+- **Everything is per user (Settings)**: daily hours, hours per weekday (e.g. less on weekends, days off = 0), buffer days, session length, mix tasks on/off. Sensible defaults; planner reads them all.
+- **Interleaving** (setting, default on): a day holds several tasks in short sessions (e.g. 2 h maths + 1 h physics) instead of one long block; ordering within a day by urgency.
 - **Overload**: when total hours don't fit, choose which items to keep whole by priority = earliest deadline, then smaller shortfall (more items finished beats one half-done); items that can't be finished get status `critical` + `at_risk=True` + `shortfall_hours` and are listed once in the UI ("Won't make it"), not as per-card "unscheduled".
 - Steps (phase 10) are planned like tasks with a precedence constraint.
 
@@ -270,12 +271,13 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] final `make aws-deploy` + smoke test
 
 ### Phase 9 — Planner v2: priorities, sessions, interleaving (§4 v2)
-- [ ] domain/planner.py v2 per §4 v2: session cap per task/day (`max_session_hours`, default 2), spread over days when slack allows, interleave tasks within a day; overload → keep the most urgent/valuable items whole, the rest become `at_risk` with `shortfall_hours` (no partial "unscheduled" noise)
-- [ ] `User.max_session_hours` (1–6) in Settings; plan API: `at_risk` list + `shortfall_hours`; tests/test_planner.py rewritten (split, interleave, priority under overload, at_risk)
+- [ ] domain/planner.py v2 per §4 v2: soft session cap (exceeded only when the deadline needs it), spread over days when slack allows, optional interleaving, per-weekday capacity; overload → keep the most urgent/valuable items whole, the rest become `at_risk` with `shortfall_hours` (no partial "unscheduled" noise)
+- [ ] User settings: `max_session_hours` (0.5–8), `weekday_hours` (7 values, default = daily capacity), `interleave` (bool); Settings page section "Planning"; plan API: `at_risk` list + `shortfall_hours`; tests/test_planner.py rewritten (split, cap exceeded only when needed, interleave on/off, weekday hours, priority under overload, at_risk)
 - [ ] frontend: remove "unscheduled" labels from cards/cells; one compact "Won't make it" callout listing at-risk items (open → drawer: raise hours / lower estimate / mark done)
 
 ### Phase 10 — AI steps (subtasks)
-- [ ] model `Step(id, assignment_id, title, hours, done, order)`; `POST /api/ai/steps` (AI Lambda; split into 2–6 steps with hours, same language; heuristic fallback = even chunks)
+- [ ] model `Step(id, assignment_id, title, hours, done, order)`; `POST /api/ai/steps` (AI Lambda) — AI splits **only when logical** (distinct parts, e.g. research → code → report; typically ≥ 4 h), otherwise returns no steps; 2–4 steps max, same language; no heuristic splitting (fallback = no steps)
+- [ ] AI suggests steps automatically only for big tasks after estimate; user can accept, edit, or dismiss; manual "Split" always available; setting "Suggest steps" on/off
 - [ ] planner plans steps in order (step N+1 never before step N) using phase-9 sessions; assignment hours = sum of open steps
 - [ ] drawer: Steps section (AI suggest, edit title/hours, reorder, check off); calendar blocks show step title
 
