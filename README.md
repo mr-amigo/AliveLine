@@ -3,7 +3,7 @@
 **An AI planner for UCU students that tells you *when to start*, not just when it's due.**
 AliveLine collects your deadlines, estimates how many hours each assignment needs, and gives every task a work window: a start date and a personal target finish date.
 
-> Live: _coming soon (AWS CloudFront)_ · Screenshot: _added in the final phase_
+> Live: **https://d2b7fp4wgl1dok.cloudfront.net** · Screenshot: _added in the final phase_
 
 ## Why
 Moodle, Google Calendar and Todoist remind you about the **submission date**. That's the wrong signal: a deadline says nothing about how long the work takes, so work slides to the last night. AliveLine counts back from the real deadlines across *all* your assignments and your daily capacity, and shows the day you need to start.

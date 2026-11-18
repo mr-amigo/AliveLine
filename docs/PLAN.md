@@ -223,8 +223,8 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - [x] infra/Dockerfile, infra/docker-compose.yml (local); `docker build` + run → sign up works on :8000
 - [x] README.md per §10 (first version)
 - [x] AWS infra: infra/{backend-ecr,backend,frontend}.yaml, Dockerfile.lambda, lambda_handler.py, Makefile
-- [ ] root `.env`: AWS keys (from reference project) + `BUDGET_EMAIL=mr.amigo98797@gmail.com`; `make aws-deploy`
-- [ ] verify on CloudFront URL: health, sign up, refresh keeps session, sign out, sign in; put URL in README; push
+- [x] root `.env`: AWS keys (from reference project) + `BUDGET_EMAIL=mr.amigo98797@gmail.com`; `make aws-deploy`
+- [x] verify on CloudFront URL: health, sign up, refresh keeps session, sign out, sign in; put URL in README; push
 - DoD: live HTTPS URL, sign up/in works.
 
 ### Phase 4 — Assignments + planner (core domain)
@@ -265,3 +265,4 @@ Each phase ≈ one session. Tick boxes as you go. Keep scope tight.
 - 2026-11-18 — Phase 3 (code) done: infra/{Dockerfile,render.yaml,docker-compose.yml}, .dockerignore, README. Image + compose (Postgres) smoke-tested: health, signup, me, SPA. Blueprint Path must be set to `infra/render.yaml`. Remaining: user deploys Neon + Render, then tick last box + add URL.
 - 2026-11-18 — Phase 3: switched deploy to AWS (reference-project pattern): CloudFront(S3 + /api→Lambda URL), Lambda container (Mangum), Aurora Serverless v2, Secrets Manager, $5 budget; Makefile aws-*. Render/Neon dropped. Lambda image tested locally via RIE (migrate/signup/me). Remaining: real deploy.
 - 2026-11-18 — Plan revised for AWS: AI via separate Bedrock Lambda (`/api/ai/*`, outside VPC, $0 idle) instead of in-backend Claude; client passes estimate to backend; ops via Lambda actions; shared account rules (don't touch onetwothree).
+- 2026-11-18 — Phase 3 done: live at https://d2b7fp4wgl1dok.cloudfront.net (us-east-1, stacks aliveline-{backend-ecr,backend,frontend}). Smoke: health, SPA fallback, API 404 passes through, signup (Secure cookie), me, signout→401, signin. First deploy ~17 min.
